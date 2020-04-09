@@ -3,11 +3,13 @@ from torch import nn
 def ConvBlock(inplanes,
               filters,
               dims=2,
-              activation= 'LeakyReLU', #'ReLU',
+              activation='LeakyReLU',  #'ReLU',
               batch_norm=True,
               kernel_size=3):
 
-    nonlinearity = getattr(nn, activation)
+    if activation is not None:
+        nonlinearity = getattr(nn, activation)
+
     conv_fn = getattr(nn, f"Conv{dims}d")
     bn_fn = getattr(nn, f"BatchNorm{dims}d")
 
@@ -16,12 +18,12 @@ def ConvBlock(inplanes,
         conv = conv_fn(n_in, n_out,
                        kernel_size=kernel_size,
                        padding=kernel_size//2,
-                       padding_mode='reflection')
+                       padding_mode='zeros')
         ops.append(conv)
 
         if batch_norm:
             bn = bn_fn(n_out)
             ops.append(bn)
-
-        ops.append(nonlinearity())
+        if activation is not None:
+            ops.append(nonlinearity())
     return nn.Sequential(*ops)

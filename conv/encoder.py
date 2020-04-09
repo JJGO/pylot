@@ -2,6 +2,7 @@ from torch import nn
 
 from .block import ConvBlock
 
+
 class ConvEncoder(nn.Module):
 
     def __init__(self,
@@ -11,7 +12,8 @@ class ConvEncoder(nn.Module):
                  flatten=False,
                  final_pool=True,
                  convs_per_block=2,
-                 batch_norm=True):
+                 batch_norm=True,
+                 kernel_size=3):
 
         super(ConvEncoder, self).__init__()
 
@@ -27,9 +29,9 @@ class ConvEncoder(nn.Module):
         for _in_ch, _out_ch in zip([in_ch]+filters[:-1], filters):
             c = ConvBlock(_in_ch, [_out_ch]*convs_per_block,
                           dims=dims,
-                          batch_norm=batch_norm)
+                          batch_norm=batch_norm,
+                          kernel_size=kernel_size)
             self.down_blocks.append(c)
-
 
     def forward(self, input):
 
@@ -45,4 +47,3 @@ class ConvEncoder(nn.Module):
             x = x.view(x.size(0), -1)
 
         return x
-
