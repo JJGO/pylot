@@ -21,7 +21,6 @@ class VAE(nn.Module):
         enc = enc.view(enc.size(0), -1)
         return self.mu(enc), self.logvar(enc)
 
-
     def decode(self, z, shape=None):
         x = self.dec(z)
 
