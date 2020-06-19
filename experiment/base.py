@@ -11,7 +11,7 @@ import sys
 
 import numpy as np
 import torch
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 from ..util import CSVLogger
 from ..util import printc
@@ -112,17 +112,17 @@ class Experiment(ABC):
         self.log_epoch_n = 0
         if self.log_csv:
             self.csvlogger = CSVLogger(self.path / 'logs.csv', metrics)
-        if self.log_tb:
-            tb_path = self.path / 'tbevents'
-            tb_path.mkdir()
-            self.tblogger = SummaryWriter(log_dir=tb_path)
+        # if self.log_tb:
+            # tb_path = self.path / 'tbevents'
+            # tb_path.mkdir()
+            # self.tblogger = SummaryWriter(log_dir=tb_path)
 
     def log(self, **kwargs):
         if self.log_csv:
             self.csvlogger.set(**kwargs)
-        if self.log_tb:
-            for k, v in kwargs.items():
-                self.tb_writer.add_scalar(k, v, self.log_epoch_n)
+        # if self.log_tb:
+        #     for k, v in kwargs.items():
+        #         self.tb_writer.add_scalar(k, v, self.log_epoch_n)
 
     def log_epoch(self, epoch=None):
         if epoch is not None:
