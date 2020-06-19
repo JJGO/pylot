@@ -1,9 +1,10 @@
+import pathlib
+from collections import OrderedDict
+
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
-
-from collections import OrderedDict
-import numpy as np
+from torchviz import make_dot
 
 
 def summary(model, input_size, batch_size=-1, device="cuda", echo=True):
@@ -114,8 +115,24 @@ def summary(model, input_size, batch_size=-1, device="cuda", echo=True):
     out += ("----------------------------------------------------------------") + '\n'
     # return summary
 
-
     if echo:
         print(out)
     else:
         return out
+
+
+def record_model(model, x, path=None):
+    if path is None:
+        path = '.'
+    path = pathlib.Path(path)
+
+    # Generate topology
+    yhat = model(x)
+    g = make_dot(yhat)
+#     g.format = 'svg'
+    g.render(path / 'topology')
+
+    # Print summary
+    with open(path / 'summary.txt', 'w') as f:
+        s = summary(model, x.shape[1:], echo=False)
+        print(s, file=f)
