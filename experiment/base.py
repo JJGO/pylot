@@ -1,68 +1,115 @@
-from abc import ABC, abstractmethod
+import collections.abc
 import datetime
 import hashlib
-import json
+# import json
 import pathlib
 import random
 import shutil
 import signal
 import string
 import sys
+import time
 
 import numpy as np
 import torch
-# from torch.utils.tensorboard import SummaryWriter
 
 from ..util import CSVLogger
 from ..util import printc
 
 
-class Experiment(ABC):
+import yaml
 
-    def __init__(self, seed=42):
-        self._params = {"experiment": self.__class__.__name__, 'params': {}}
-        self.seed = seed
-        self.frozen = False
-        signal.signal(signal.SIGINT, self.SIGINT_handler)
-        signal.signal(signal.SIGQUIT, self.SIGQUIT_handler)
 
-    def add_params(_self, **kwargs):
-        if not _self.frozen:
-            _self._params['params'].update({k: v for k, v in kwargs.items() if k not in ('self', '__class__')})
+def dict_recursive_update(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = dict_recursive_update(d.get(k, {}), v)
         else:
-            raise RuntimeError("Cannot add params to frozen experiment")
+            d[k] = v
+    return d
+
+
+def expand_dots(d):
+    # expand_dots({"a.b.c": 1, "J":2, "a.d":2, "a.b.d":3})
+    newd = {}
+    for k, v in d.items():
+        if '.' in k:
+            pre, post = k.split('.', maxsplit=1)
+            u = expand_dots({post: v})
+            if pre in newd:
+                newd[pre] = dict_recursive_update(newd[pre], u)
+            else:
+                newd[pre] = u
+        else:
+            newd[k] = v
+    return newd
+
+
+class Experiment:
+
+    DEFAULT_CFG = pathlib.Path('default.yml')
+
+    def __init__(self, cfg=None, **kwargs):
+
+        default = {}
+        # 1. Default config
+        if Experiment.DEFAULT_CFG.exists():
+            with open(Experiment.DEFAULT_CFG, 'r') as f:
+                default = yaml.load(f, Loader=yaml.FullLoader)
+        # 2. cfg dict or file
+        if cfg is not None:
+            # File
+            if isinstance(cfg, (str, pathlib.Path)):
+                with open(cfg, 'r') as f:
+                    cfg = yaml.load(f, Loader=yaml.FullLoader)
+            cfg = dict_recursive_update(default, cfg)
+        else:
+            cfg = default
+        # 3. Forced kwargs
+        kwargs = expand_dots(kwargs)
+        cfg = dict_recursive_update(cfg, kwargs)
+
+        if 'experiment' not in cfg:
+            cfg['experiment'] = {}
+        cfg['experiment']['type'] = f"{self.__class__.__name__}"
+        if 'seed' not in cfg['experiment']:
+            cfg['experiment']['seed'] = 42
+
+        self.cfg = cfg
+
+        # signal.signal(signal.SIGINT, self.SIGINT_handler)
+        signal.signal(signal.SIGQUIT, self.SIGQUIT_handler)
 
     def freeze(self):
         self.generate_uid()
-        self.fix_seed(self.seed)
+        self.fix_seed(self.cfg['experiment']['seed'])
         self.frozen = True
 
-    @property
-    def params(self):
-        # prevents from trying to modify
-        return self._params['params']
+    # def serializable_params(self):
+    #     return {k: repr(v) for k, v in self._params.items()}
 
-    def serializable_params(self):
-        return {k: repr(v) for k, v in self._params.items()}
-
-    def save_params(self):
-        path = self.path / 'params.json'
+    def save_config(self):
+        path = self.path / 'config.yml'
         with open(path, 'w') as f:
-            json.dump(self.serializable_params(), f, indent=4)
+            yaml.dump(self.cfg, f, indent=2)
 
     def get_path(self):
-        if hasattr(self, "rootdir"):
-            parent = pathlib.Path(self.rootdir)
+        ecfg = self.cfg['experiment']
+        if 'path' in ecfg:
+            return pathlib.Path(ecfg['path'])
         else:
-            parent = pathlib.Path('results')
-        if self._params.get('debug', False):
-            parent /= 'tmp'
-        parent.mkdir(parents=True, exist_ok=True)
-        return parent / self.uid
+            if 'root' in ecfg:
+                parent = pathlib.Path(ecfg['root'])
+            else:
+                parent = pathlib.Path('results')
+            if 'debug' in ecfg and ecfg['debug']:
+                parent /= 'tmp'
+            parent.mkdir(parents=True, exist_ok=True)
+            return parent / self.uid
 
     @property
     def digest(self):
-        return hashlib.md5(json.dumps(self.serializable_params(), sort_keys=True).encode('utf-8')).hexdigest()
+        return hashlib.md5(yaml.dump(self.cfg, sort_keys=True).encode('utf-8')).hexdigest()
 
     def __hash__(self):
         return hash(self.digest)
@@ -94,55 +141,50 @@ class Experiment(ABC):
         if hasattr(self, "uid"):
             return self.uid
 
+        random.seed(time.time())
         N = 4  # length of nonce
-        time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         nonce = ''.join(random.choices(string.ascii_uppercase + string.digits, k=N))
-        self.uid = f"{time}-{nonce}-{self.digest}"
+        self.uid = f"{now}-{nonce}-{self.digest}"
         return self.uid
 
-    def build_logging(self, metrics, path=None, csv=True, tensorboard=False):
-        if path is None:
-            self.path = self.get_path()
+    def build_logging(self):
+        self.path = self.get_path()
         printc(f"Logging results to {self.path}", color='MAGENTA')
         self.path.mkdir(exist_ok=True, parents=True)
-        self.save_params()
+        self.save_config()
 
-        self.log_csv = csv
-        self.log_tb = tensorboard
+        self.csvlogger = CSVLogger(self.path / 'logs.csv')
         self.log_epoch_n = 0
-        if self.log_csv:
-            self.csvlogger = CSVLogger(self.path / 'logs.csv', metrics)
-        # if self.log_tb:
-            # tb_path = self.path / 'tbevents'
-            # tb_path.mkdir()
-            # self.tblogger = SummaryWriter(log_dir=tb_path)
 
     def log(self, **kwargs):
-        if self.log_csv:
-            self.csvlogger.set(**kwargs)
-        # if self.log_tb:
-        #     for k, v in kwargs.items():
-        #         self.tb_writer.add_scalar(k, v, self.log_epoch_n)
+        self.csvlogger.set(**kwargs)
 
     def log_epoch(self, epoch=None):
         if epoch is not None:
             self.log_epoch_n = epoch
         self.log_epoch_n += 1
-        if self.log_csv:
-            self.csvlogger.set(epoch=epoch)
-            self.csvlogger.update()
-            self.csvlogger.set(epoch=self.log_epoch_n)
 
-    def SIGINT_handler(self, signal, frame):
-        pass
+        self.csvlogger.set(epoch=epoch)
+        self.csvlogger.set(timestamp=time.time())
+        self.csvlogger.update()
+        self.csvlogger.set(epoch=self.log_epoch_n)
+
+    # def SIGINT_handler(self, signal, frame):
+    #     pass
 
     def SIGQUIT_handler(self, signal, frame):
-        shutil.rmtree(self.path, ignore_errors=True)
+        self.delete()
         sys.exit(1)
 
-    @abstractmethod
     def run(self):
         pass
 
+    def delete(self):
+        shutil.rmtree(self.path, ignore_errors=True)
+
     def __repr__(self):
-        return json.dumps(self.params, indent=4)
+        return f"{self.__class__.__name__}({self.cfg})"
+
+    def __str__(self):
+        return f"{self.__class__.__name__}\n---\n" + yaml.dump(self.cfg, indent=2)
