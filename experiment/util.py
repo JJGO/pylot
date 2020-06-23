@@ -32,3 +32,24 @@ def allbut(mapping, keys):
     for k in keys:
         del mapping[k]
     return mapping
+
+
+def expand_keys(d):
+    expanded = {}
+    for k, v in d.items():
+        if isinstance(v, collections.abc.Mapping):
+            for k2, v2 in expand_keys(v).items():
+                expanded[f"{k}.{k2}"] = v2
+        else:
+            expanded[k] = v
+    return expanded
+
+
+def delete_with_prefix(d, pre):
+    todelete = []
+    for k in d:
+        if k.startswith(pre):
+            todelete.append(k)
+    for k in todelete:
+        del d[k]
+    return d
