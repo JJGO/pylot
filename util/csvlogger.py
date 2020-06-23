@@ -104,7 +104,13 @@ class CSVLogger:
             df.to_csv(self.file, mode='a', header=False, index=False)
         self._new_row()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.flush()
 
     def _new_row(self):
         empty_row = [None]*len(self.columns)
         self.values.append(empty_row)
+
