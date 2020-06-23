@@ -1,6 +1,7 @@
 """Custom CSV Logger
 """
 import csv
+import pathlib
 import torch
 import pandas as pd
 
@@ -46,7 +47,7 @@ class SimpleCSVLogger:
             else:
                 raise ValueError(f"{k} not in columns {self.columns}")
 
-    def update(self):
+    def flush(self):
         """Take current values and write a row in the CSV
         """
         row = [self.values.get(c, "") for c in self.columns]
@@ -65,29 +66,45 @@ class CSVLogger:
         """ More flexible version of a CSVLogger
         The main difference is that columns need not be specified on creation
         and can be added through the lifetime of the object
-
-        Less efficient since it dumps the whole CSVarray every time
         """
         self.file = file
         self.columns = []
         self.values = [[]]
+
+        if pathlib.Path(file).exists():
+            df = pd.read_csv(file)
+            self.columns = list(df.columns)
+            self.values = df.values.tolist()
+            self._new_row()
+
+        self.new_columns = False
 
     def set(self, **kwargs):
 
         for k, v in kwargs.items():
             if k not in self.columns:
                 self.columns.append(k)
+                self.new_columns = True
 
                 for row in self.values:
-                    row.append("")
+                    row.append(None)
 
             i = self.columns.index(k)
             if isinstance(v, torch.Tensor):
                 v = v.item()
             self.values[-1][i] = v
 
-    def update(self):
-        df = pd.DataFrame(data=self.values, columns=self.columns)
-        df.to_csv(self.file, index=False)
-        empty_row = [""]*len(self.columns)
+    def flush(self):
+        if self.new_columns:
+            df = pd.DataFrame(data=self.values, columns=self.columns)
+            df.to_csv(self.file, index=False)
+            self.new_columns = False
+        else:
+            df = pd.DataFrame(data=[self.values[-1]], columns=self.columns)
+            df.to_csv(self.file, mode='a', header=False, index=False)
+        self._new_row()
+
+
+    def _new_row(self):
+        empty_row = [None]*len(self.columns)
         self.values.append(empty_row)
