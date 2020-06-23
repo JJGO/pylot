@@ -115,7 +115,7 @@ class StatsMeter:
         return f"n={self.n}  mean={self.mean}  std={self.std}"
 
     def __repr__(self):
-        return "OnlineStats.from_values(" + \
+        return "StatsMeter.from_values(" + \
                f"n={self.n}, mean={self.mean}, " + \
                f"std={self.std})"
 
@@ -128,7 +128,7 @@ class StatsMeter:
             other {[type]} -- [description]
 
         Returns:
-            OnlineStats -- New instance with the sum.
+            StatsMeter -- New instance with the sum.
 
         Raises:
             TypeError -- If the type is different from int|float|OnlineStas
