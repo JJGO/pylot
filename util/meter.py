@@ -1,10 +1,26 @@
-from collections import defaultdict
+from abc import abstractmethod
 import numpy as np
+# from collections import defaultdict
 
 from .csvlogger import CSVLogger
 
 
-class StatsMeter:
+class Meter:
+
+    def __init__(self, iterable=None):
+        if iterable is not None:
+            self.addN(iterable)
+
+    @abstractmethod
+    def add(self, datum):
+        pass
+
+    def addN(self, iterable):
+        for datum in iterable:
+            self.add(datum)
+
+
+class StatsMeter(Meter):
     """
     Auxiliary classs to keep track of online stats including:
         - mean
@@ -25,8 +41,7 @@ class StatsMeter:
         self.n = 0
         self.mean = 0.0
         self.S = 0.0
-        if iterable is not None:
-            self.addN(iterable)
+        super().__init__(iterable)
 
     def add(self, datum):
         """Add a single datum
@@ -57,8 +72,7 @@ class StatsMeter:
             add = self + StatsMeter.from_values(len(iterable), np.mean(iterable), np.std(iterable))
             self.n, self.mean, self.S = add.n, add.mean, add.S
         else:
-            for datum in iterable:
-                self.add(datum)
+            super().addN(iterable)
 
     def pop(self, datum):
         if self.n == 0:
@@ -72,7 +86,11 @@ class StatsMeter:
         self.S -= (datum - self.mean) * delta
 
     def popN(self, iterable, batch=False):
-        raise NotImplementedError
+        if batch:
+            raise NotImplementedError
+        else:
+            for datum in iterable:
+                self.pop(datum)
 
     @property
     def variance(self):
@@ -158,16 +176,22 @@ class StatsMeter:
         # Multiply all values seen by some constant
         return StatsMeter.from_raw_values(self.n, self.mean*k, self.S*k**2)
 
+    def asdict(self):
+        return {'mean': self.mean, 'std': self.std} #, 'n': self.n}
 
-class MaxMinMeter:
+
+class MaxMinMeter(Meter):
 
     def __init__(self, iterable=None):
-        self.max_ = float('inf')
-        self.min_ = float('-inf')
+        self. n = 0
+        self.max_ = float('-inf')
+        self.min_ = float('inf')
+        super().__init__(iterable)
 
-    def add(self, value):
-        self.max_ = max(value, self.max_)
-        self.min_ = min(value, self.min_)
+    def add(self, datum):
+        self.n += 1
+        self.max_ = max(datum, self.max_)
+        self.min_ = min(datum, self.min_)
 
     @property
     def max(self):
@@ -177,38 +201,76 @@ class MaxMinMeter:
     def min(self):
         return self.min_
 
-
-class StatsMeterMap:
-
-    def __init__(self, *keys):
-        self.stats = defaultdict(StatsMeter)
-        if keys is not None:
-            self.register(*keys)
-
-    def register(self, *keys):
-        for k in keys:
-            self.stats[k]
-
-    def __iter__(self):
-        return self.stats
-
-    def __str__(self):
-        s = "Stats"
-        max_len = max(len(k) for k in self.stats)
-        for k in self:
-            s += f'  {k:>{max_len}s}:  {str(self.stats[k])}'
+    def asdict(self):
+        return {'min': self.min, 'max': self.max} #, 'n': self.n}
 
 
-class StatsCSVLogger(CSVLogger):
+class UnionMeter(Meter):
+
+    def __init__(self, meters, iterable=None):
+        assert all(isinstance(m, Meter) for m in meters)
+        self.meters = meters
+        super().__init__(iterable)
+
+    def add(self, datum):
+        for m in self.meters:
+            m.add(datum)
+
+    def asdict(self):
+        d = {}
+        for meter in self.meters:
+            d.update(meter.asdict())
+        return d
+
+    def __getattr__(self, attr):
+
+        for meter in self.meters:
+            if hasattr(meter, attr):
+                return getattr(meter, attr)
+        else:
+            raise AttributeError(f"No meter has attribute {attr}")
+
+    @staticmethod
+    def union(*meter_types):
+        assert all(issubclass(m, Meter) for m in meter_types)
+
+        def constructor():
+            return UnionMeter([mt() for mt in meter_types])
+
+        return constructor
+
+
+# class StatsMeterMap:
+
+#     def __init__(self, *keys):
+#         self.stats = defaultdict(StatsMeter)
+#         if keys is not None:
+#             self.register(*keys)
+
+#     def register(self, *keys):
+#         for k in keys:
+#             self.stats[k]
+
+#     def __iter__(self):
+#         return self.stats
+
+#     def __str__(self):
+#         s = "Stats"
+#         max_len = max(len(k) for k in self.stats)
+#         for k in self:
+#             s += f'  {k:>{max_len}s}:  {str(self.stats[k])}'
+
+
+class MeterCSVLogger(CSVLogger):
 
     def set(self, *args, **kwargs):
 
         def _flatten_stats(mapping):
             new = {}
             for k, v in mapping.items():
-                if isinstance(v, StatsMeter):
-                    new[f"{k}_mean"] = v.mean
-                    new[f"{k}_std"] = v.std
+                if isinstance(v, Meter):
+                    for param, v2 in v.asdict().items():
+                        new[f"{k}_{param}"] = v2
                 else:
                     new = v
 
