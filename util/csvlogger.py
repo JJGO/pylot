@@ -1,6 +1,7 @@
 """Custom CSV Logger
 """
 import csv
+import collections.abc
 import pathlib
 import torch
 import pandas as pd
@@ -79,7 +80,13 @@ class CSVLogger:
 
         self.new_columns = False
 
-    def set(self, **kwargs):
+    def set(self, *args, **kwargs):
+
+        for mapping in args:
+            assert isinstance(mapping, collections.abc.Mapping)
+            for k, v in mapping.items():
+                assert k not in kwargs
+                kwargs[k] = v
 
         for k, v in kwargs.items():
             if k not in self.columns:

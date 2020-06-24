@@ -1,6 +1,8 @@
 from collections import defaultdict
 import numpy as np
 
+from .csvlogger import CSVLogger
+
 
 class StatsMeter:
     """
@@ -187,8 +189,32 @@ class StatsMeterMap:
         for k in keys:
             self.stats[k]
 
+    def __iter__(self):
+        return self.stats
+
     def __str__(self):
         s = "Stats"
         max_len = max(len(k) for k in self.stats)
-        for k in self.stats:
+        for k in self:
             s += f'  {k:>{max_len}s}:  {str(self.stats[k])}'
+
+
+class StatsCSVLogger(CSVLogger):
+
+    def set(self, *args, **kwargs):
+
+        def _flatten_stats(mapping):
+            new = {}
+            for k, v in mapping.items():
+                if isinstance(v, StatsMeter):
+                    new[f"{k}_mean"] = v.mean
+                    new[f"{k}_std"] = v.std
+                else:
+                    new = v
+
+            return new
+
+        args = [_flatten_stats(mapping) for mapping in args]
+        kwargs = _flatten_stats(kwargs)
+
+        super().set(*args, **kwargs)
