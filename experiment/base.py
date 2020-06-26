@@ -1,7 +1,6 @@
-import collections.abc
+from abc import abstractmethod
 import datetime
 import hashlib
-# import json
 import pathlib
 import random
 import shutil
@@ -9,47 +8,33 @@ import signal
 import string
 import sys
 import time
-
-import numpy as np
-import torch
-
-from ..util import CSVLogger
-from ..util import printc
-
-
 import yaml
 
+import numpy as np
+import pandas as pd
+import torch
 
-def dict_recursive_update(d, u):
-    for k, v in u.items():
-        if isinstance(v, collections.abc.Mapping):
-            d[k] = dict_recursive_update(d.get(k, {}), v)
-        else:
-            d[k] = v
-    return d
-
-
-def expand_dots(d):
-    # expand_dots({"a.b.c": 1, "J":2, "a.d":2, "a.b.d":3})
-    newd = {}
-    for k, v in d.items():
-        if '.' in k:
-            pre, post = k.split('.', maxsplit=1)
-            u = expand_dots({post: v})
-            if pre in newd:
-                newd[pre] = dict_recursive_update(newd[pre], u)
-            else:
-                newd[pre] = u
-        else:
-            newd[k] = v
-    return newd
+from ..util import MeterCSVLogger, printc
+from .util import dict_recursive_update, expand_dots
 
 
 class Experiment:
 
     DEFAULT_CFG = pathlib.Path('default.yml')
 
-    def __init__(self, cfg=None, **kwargs):
+    def __init__(self, cfg=None, path=None, **kwargs):
+        if path is not None:
+            assert cfg is None, "Config must not be provided when loading an existing experiment"
+            assert kwargs == {}, "Keyword arguments must not be provided when loading an existing experiment"
+            self._init_existing(path)
+        else:
+            self._init_new(cfg, **kwargs)
+
+        self.fix_seed(self.cfg['experiment']['seed'])
+        # signal.signal(signal.SIGINT, self.SIGINT_handler)
+        signal.signal(signal.SIGQUIT, self.SIGQUIT_handler)
+
+    def _init_new(self, cfg, **kwargs):
 
         default = {}
         # 1. Default config
@@ -69,6 +54,13 @@ class Experiment:
         kwargs = expand_dots(kwargs)
         cfg = dict_recursive_update(cfg, kwargs)
 
+        if 'root' in cfg:
+            root = pathlib.Path(cfg['root'])
+            del cfg['root']
+        else:
+            root = pathlib.Path()
+
+        # Keep track of experiment properties like type, seed, ...
         if 'experiment' not in cfg:
             cfg['experiment'] = {}
         cfg['experiment']['type'] = f"{self.__class__.__name__}"
@@ -76,36 +68,24 @@ class Experiment:
             cfg['experiment']['seed'] = 42
 
         self.cfg = cfg
-
-        # signal.signal(signal.SIGINT, self.SIGINT_handler)
-        signal.signal(signal.SIGQUIT, self.SIGQUIT_handler)
-
-    def freeze(self):
         self.generate_uid()
-        self.fix_seed(self.cfg['experiment']['seed'])
-        self.frozen = True
+        self.path = pathlib.Path(root) / self.uid
+        self.path.mkdir(exist_ok=True, parents=True)
+        self.save_config()
 
-    # def serializable_params(self):
-    #     return {k: repr(v) for k, v in self._params.items()}
+    def _init_existing(self, path):
+        print(path)
+        existing_cfg = pathlib.Path(path) / 'config.yml'
+        assert existing_cfg.exists(), "Cannot find config.yml under the provided path"
+        self.path = pathlib.Path(path)
+        with open(self.path / 'config.yml', 'r') as f:
+            self.cfg = yaml.load(f, Loader=yaml.FullLoader)
+        self.uid = self.path.stem
 
     def save_config(self):
         path = self.path / 'config.yml'
         with open(path, 'w') as f:
             yaml.dump(self.cfg, f, indent=2)
-
-    def get_path(self):
-        ecfg = self.cfg['experiment']
-        if 'path' in ecfg:
-            return pathlib.Path(ecfg['path'])
-        else:
-            if 'root' in ecfg:
-                parent = pathlib.Path(ecfg['root'])
-            else:
-                parent = pathlib.Path('results')
-            if 'debug' in ecfg and ecfg['debug']:
-                parent /= 'tmp'
-            parent.mkdir(parents=True, exist_ok=True)
-            return parent / self.uid
 
     @property
     def digest(self):
@@ -133,7 +113,7 @@ class Experiment:
     def generate_uid(self):
         """Returns a time sortable UID
 
-        Computes timestamp and appends unique identifie
+        Computes timestamp and appends unique identifier
 
         Returns:
             str -- uid
@@ -149,16 +129,16 @@ class Experiment:
         return self.uid
 
     def build_logging(self):
-        self.path = self.get_path()
+        assert hasattr(self, "uid"), "UID needs to have been generated first"
+        assert hasattr(self, "path"), "UID needs to have been generated first"
         printc(f"Logging results to {self.path}", color='MAGENTA')
-        self.path.mkdir(exist_ok=True, parents=True)
-        self.save_config()
 
-        self.csvlogger = CSVLogger(self.path / 'logs.csv')
+        self.csvlogger = MeterCSVLogger(self.path / 'logs.csv')
+        self.csvlogger.set(epoch=None)
         self.log_epoch_n = 0
 
-    def log(self, **kwargs):
-        self.csvlogger.set(**kwargs)
+    def log(self, *args, **kwargs):
+        self.csvlogger.set(*args, **kwargs)
 
     def log_epoch(self, epoch=None):
         if epoch is not None:
@@ -167,7 +147,7 @@ class Experiment:
 
         self.csvlogger.set(epoch=epoch)
         self.csvlogger.set(timestamp=time.time())
-        self.csvlogger.update()
+        self.csvlogger.flush()
         self.csvlogger.set(epoch=self.log_epoch_n)
 
     # def SIGINT_handler(self, signal, frame):
@@ -177,9 +157,6 @@ class Experiment:
         self.delete()
         sys.exit(1)
 
-    def run(self):
-        pass
-
     def delete(self):
         shutil.rmtree(self.path, ignore_errors=True)
 
@@ -188,3 +165,13 @@ class Experiment:
 
     def __str__(self):
         return f"{self.__class__.__name__}\n---\n" + yaml.dump(self.cfg, indent=2)
+
+    @abstractmethod
+    def run(self):
+        pass
+
+    def resume(self):
+        pass
+
+    def load(self):
+        pass
