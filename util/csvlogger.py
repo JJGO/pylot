@@ -120,4 +120,3 @@ class CSVLogger:
     def _new_row(self):
         empty_row = [None]*len(self.columns)
         self.values.append(empty_row)
-

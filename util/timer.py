@@ -39,7 +39,7 @@ class Timer:
 
     @property
     def measurements(self):
-        return self._measurements.copy()
+        return dict(self._measurements)
 
 
 class StatsTimer(Timer):

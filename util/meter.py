@@ -177,7 +177,7 @@ class StatsMeter(Meter):
         return StatsMeter.from_raw_values(self.n, self.mean*k, self.S*k**2)
 
     def asdict(self):
-        return {'mean': self.mean, 'std': self.std} #, 'n': self.n}
+        return {'mean': self.mean, 'std': self.std}  #, 'n': self.n}
 
 
 class MaxMinMeter(Meter):
@@ -202,7 +202,7 @@ class MaxMinMeter(Meter):
         return self.min_
 
     def asdict(self):
-        return {'min': self.min, 'max': self.max} #, 'n': self.n}
+        return {'min': self.min, 'max': self.max}  #, 'n': self.n}
 
 
 class UnionMeter(Meter):
@@ -272,7 +272,7 @@ class MeterCSVLogger(CSVLogger):
                     for param, v2 in v.asdict().items():
                         new[f"{k}_{param}"] = v2
                 else:
-                    new = v
+                    new[k] = v
 
             return new
 
