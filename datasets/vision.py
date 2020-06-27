@@ -46,7 +46,7 @@ def dataset_path(dataset, path=None):
     for p in paths:
         p = (p / dataset).resolve()
         if p.exists():
-            print(f"Found {dataset} under {p}")
+            # print(f"Found {dataset} under {p}")
             return p
     else:
         raise LookupError(f"Could not find {dataset} in {paths}")
@@ -77,7 +77,7 @@ def dataset_builder(dataset, train=True, normalize=None, preproc=None, path=None
 
     path = dataset_path(dataset, path)
 
-    return _constructors[dataset](path, **kwargs)
+    return _constructors[dataset](path, train=train, **kwargs)
 
 
 def MNIST(train=True, path=None):
