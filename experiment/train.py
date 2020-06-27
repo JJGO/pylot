@@ -9,7 +9,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.backends import cudnn
 
-from torchvision import datasets as tv_datasets
+# from torchvision import datasets as tv_datasets
 from torchvision import transforms
 from torchviz import make_dot
 
@@ -21,9 +21,22 @@ from ..util import printc, StatsMeter, StatsTimer
 from .. import callbacks
 from .. import datasets
 from .. import models
+from .. import loss
+
+
+def any_getattr(modules, attr):
+    for module in reversed(modules):
+        if hasattr(module, attr):
+            return getattr(module, attr)
+    raise AttributeError(f"Attribute {attr} not found in any of {modules}")
 
 
 class TrainExperiment(Experiment):
+
+    MODELS = [models]
+    DATASETS = [datasets]
+    CALLBACKS = [callbacks]
+    LOSS = [loss]
 
     def __init__(self, cfg=None, **kwargs):
 
@@ -39,33 +52,30 @@ class TrainExperiment(Experiment):
     def build_data(self, dataset, **data_kwargs):
 
         if hasattr(datasets, dataset):
-            constructor = getattr(datasets, dataset)
+            constructor = any_getattr(self.DATASETS, dataset)
             kwargs = allbut(data_kwargs, ['dataloader'])
             self.train_dataset = constructor(train=True, **kwargs)
             self.val_dataset = constructor(train=False, **kwargs)
 
-        elif hasattr(tv_datasets, dataset):
-            constructor = getattr(tv_datasets, dataset)
-            self.train_dataset = constructor(os.environ['HOME'] + '/data', train=True, download=True, transform=transforms.ToTensor())
-            self.val_dataset = constructor(os.environ['HOME'] + '/data', train=False, download=True, transform=transforms.ToTensor())
         else:
             raise ValueError(f"Dataset {dataset} is not recognized")
 
         self.train_dl = DataLoader(self.train_dataset, shuffle=True, **data_kwargs['dataloader'])
         self.val_dl = DataLoader(self.val_dataset, shuffle=False, **data_kwargs['dataloader'])
 
-    def build_model(self, arch, weights=None, **model_kwargs):
-
-        if hasattr(models, arch):
-            constructor = getattr(models, arch)
+    def build_model(self, model, weights=None, **model_kwargs):
+        if hasattr(models, model):
+            constructor = any_getattr(self.MODELS, model)
             self.model = constructor(**model_kwargs)
+        else:
+            raise ValueError(f"Architecture {model} not found")
 
         if weights is not None:
             self.load_model(weights)
 
     def build_loss(self, loss, flatten=False, **loss_kwargs):
         if hasattr(nn, loss):
-            loss_func = getattr(nn, loss)(**loss_kwargs)
+            loss_func = any_getattr(self.LOSS, loss)(**loss_kwargs)
         if flatten:
             loss_func = flatten_loss(loss_func)
 
@@ -152,6 +162,9 @@ class TrainExperiment(Experiment):
                 s = summary(self.model, x.shape[1:], echo=False)
                 print(s, file=f)
 
+                print("\n\nOptim\n", file=f)
+                print(self.optim, file=f)
+
         # Save model topology
         topology_path = self.path / 'topology'
         if not topology_path.with_suffix('.pdf').exists():
@@ -169,10 +182,10 @@ class TrainExperiment(Experiment):
         if 'log' in self.cfg:
             if 'batch_callbacks' in self.cfg['log']:
                 cbs = self.cfg['log']['batch_callbacks']
-                self.batch_callbacks = [getattr(callbacks, k)(self, **args) for c in cbs for k, args in c.items()]
+                self.batch_callbacks = [any_getattr(self.CALLBACKS, k)(self, **args) for c in cbs for k, args in c.items()]
             if 'epoch_callbacks' in self.cfg['log']:
                 cbs = self.cfg['log']['epoch_callbacks']
-                self.epoch_callbacks = [getattr(callbacks, k)(self, **args) for c in cbs for k, args in c.items()]
+                self.epoch_callbacks = [any_getattr(self.CALLBACKS, k)(self, **args) for c in cbs for k, args in c.items()]
 
     def run_epochs(self, start=0, end=None):
         end = self.epochs if end is None else end
