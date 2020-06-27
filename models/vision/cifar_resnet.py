@@ -123,7 +123,7 @@ class ResNet(nn.Module):
 
 
 def resnet_factory(filters, num_classes, weight_file):
-    def _resnet(pretrained=True):
+    def _resnet(pretrained=False):
         model = ResNet(BasicBlock, filters, num_classes=num_classes)
         if pretrained:
             weights = weights_path(weight_file)

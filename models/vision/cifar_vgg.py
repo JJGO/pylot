@@ -93,7 +93,7 @@ class VGGBnDrop(nn.Module):
         self.apply(init_weights)
 
 
-def vgg_bn_drop(pretrained=True):
+def vgg_bn_drop(pretrained=False):
     model = VGGBnDrop(num_classes=10)
     if pretrained:
         weights = weights_path('vgg_bn_drop.pt')
@@ -103,7 +103,7 @@ def vgg_bn_drop(pretrained=True):
     return model
 
 
-def vgg_bn_drop_100(pretrained=True):
+def vgg_bn_drop_100(pretrained=False):
     # For CIFAR 100
     model = VGGBnDrop(num_classes=100)
     if pretrained:
