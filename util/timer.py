@@ -30,12 +30,12 @@ class Timer:
             torch.cuda.synchronize()
         end = time.time()
         self._save(label, end-start)
+        if self.verbose:
+            print(f"{label} took {end-start:n}s")
 
     def _save(self, label, elapsed):
 
         self._measurements[label] = elapsed
-        if self.verbose:
-            print(f"{label} took {elapsed:n}s")
 
     @property
     def measurements(self):
