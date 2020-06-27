@@ -92,18 +92,7 @@ class IndexedImageFolder(IndexedDatasetFolder):
         self.imgs = self.samples
 
 
-class IndexedImageDataset(Dataset):
-
-    def __init__(self, root, train=True, transform=None, target_transform=None, **kwargs):
-        root = pathlib.Path(root)
-        root /= 'train' if train else 'val'
-        self.data = IndexedImageFolder(root,
-                                       transform=transform,
-                                       target_transform=target_transform,
-                                       **kwargs)
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        return self.data[index]
+def IndexedImageDataset(root, train=True, **kwargs):
+    root = pathlib.Path(root)
+    root /= 'train' if train else 'val'
+    return IndexedImageFolder(root, **kwargs)
