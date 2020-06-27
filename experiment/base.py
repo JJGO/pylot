@@ -89,7 +89,8 @@ class Experiment:
 
     @property
     def digest(self):
-        return hashlib.md5(yaml.dump(self.cfg, sort_keys=True).encode('utf-8')).hexdigest()
+        cfg = {k: v for k, v in self.cfg.items() if k not in ('log',)}
+        return hashlib.md5(yaml.dump(cfg, sort_keys=True).encode('utf-8')).hexdigest()
 
     def __hash__(self):
         return hash(self.digest)
