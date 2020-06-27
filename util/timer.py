@@ -20,7 +20,7 @@ class Timer:
         self._measurements = {}
 
     @contextmanager
-    def __call__(self, label):
+    def __call__(self, label=""):
 
         if self.cuda:
             torch.cuda.synchronize()
