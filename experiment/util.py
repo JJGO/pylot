@@ -53,3 +53,10 @@ def delete_with_prefix(d, pre):
     for k in todelete:
         del d[k]
     return d
+
+def any_getattr(modules, attr):
+    for module in reversed(modules):
+        if hasattr(module, attr):
+            return getattr(module, attr)
+    raise AttributeError(f"Attribute {attr} not found in any of {modules}")
+

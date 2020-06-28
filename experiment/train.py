@@ -1,6 +1,5 @@
 import pathlib
 import json
-import os
 
 from tqdm import tqdm
 
@@ -10,11 +9,10 @@ from torch.utils.data import DataLoader
 from torch.backends import cudnn
 
 # from torchvision import datasets as tv_datasets
-from torchvision import transforms
 from torchviz import make_dot
 
 from .base import Experiment
-from .util import allbut
+from .util import allbut, any_getattr
 from ..log import summary
 from ..loss import flatten_loss
 from ..util import printc, StatsMeter, StatsTimer
@@ -22,13 +20,6 @@ from .. import callbacks
 from .. import datasets
 from .. import models
 from .. import loss
-
-
-def any_getattr(modules, attr):
-    for module in reversed(modules):
-        if hasattr(module, attr):
-            return getattr(module, attr)
-    raise AttributeError(f"Attribute {attr} not found in any of {modules}")
 
 
 class TrainExperiment(Experiment):
@@ -43,7 +34,6 @@ class TrainExperiment(Experiment):
         # Default children kwargs
         super().__init__(cfg, **kwargs)
 
-        # Save params
         self.build_data(**self.cfg['data'])
         self.build_model(**self.cfg['model'])
         self.build_loss(**self.cfg['loss'])
@@ -60,8 +50,12 @@ class TrainExperiment(Experiment):
         else:
             raise ValueError(f"Dataset {dataset} is not recognized")
 
-        self.train_dl = DataLoader(self.train_dataset, shuffle=True, **data_kwargs['dataloader'])
-        self.val_dl = DataLoader(self.val_dataset, shuffle=False, **data_kwargs['dataloader'])
+        self.build_dataloader(self, **data_kwargs['dataloader'])
+
+    def build_dataloader(self, **dataloader_kwargs):
+
+        self.train_dl = DataLoader(self.train_dataset, shuffle=True, **dataloader_kwargs)
+        self.val_dl = DataLoader(self.val_dataset, shuffle=False, **dataloader_kwargs)
 
     def build_model(self, model, weights=None, **model_kwargs):
         if hasattr(models, model):
@@ -194,11 +188,12 @@ class TrainExperiment(Experiment):
                 printc(f"Start epoch {epoch}", color='YELLOW')
                 self.train(epoch)
                 self.eval(epoch)
-                self.log_epoch(epoch)
 
                 with torch.set_grad_enabled(False):
                     for cb in self.epoch_callbacks:
                         cb(self, epoch)
+
+                self.log_epoch(epoch)
 
         except KeyboardInterrupt:
             printc(f"\nInterrupted at epoch {epoch}. Tearing Down", color='RED')
@@ -239,10 +234,10 @@ class TrainExperiment(Experiment):
 
                 total_loss.add(loss.item() / dl.batch_size)
                 postfix = {'loss': total_loss.mean}
-                epoch_progress.set_postfix(postfix)
 
                 for cb in self.batch_callbacks:
                     cb(self, postfix)
+                epoch_progress.set_postfix(postfix)
 
         self.log({
             f'{prefix}_loss': total_loss.mean,
