@@ -7,8 +7,11 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.backends import cudnn
+import torch.optim
 
-# from torchvision import datasets as tv_datasets
+import torchvision.datasets
+import torchvision.models
+
 from torchviz import make_dot
 
 from .base import Experiment
@@ -24,10 +27,11 @@ from .. import loss
 
 class TrainExperiment(Experiment):
 
-    MODELS = [models]
-    DATASETS = [datasets]
+    MODELS = [torchvision.models, models]
+    DATASETS = [torchvision.datasets, datasets]
     CALLBACKS = [callbacks]
-    LOSS = [loss]
+    LOSS = [torch.nn, loss]
+    OPTIMS = [torch.optim]
 
     def __init__(self, cfg=None, **kwargs):
 
@@ -81,7 +85,7 @@ class TrainExperiment(Experiment):
 
         # Optim
         if isinstance(optim, str):
-            constructor = getattr(torch.optim, optim)
+            constructor = any_getattr(self.OPTIMS, optim)
             optim = constructor(self.model.parameters(), **optim_kwargs)
 
         self.optim = optim
