@@ -31,3 +31,16 @@ def TqdmParameters(experiment, parameters):
         postfix.update(param_dict)
 
     return TqdmParametersCallback
+
+
+def PrintLogged(experiment):
+
+    def PrintLoggedCallback(experiment, epoch):
+        print(f"Logged @ Epoch {epoch}", flush=True)
+        csv = experiment.csvlogger
+        for c, v in zip(csv.columns, csv.values[-1]):
+            if isinstance(v, (int, float)):
+                print(f"{c:<20s}: {v:n}", flush=True)
+            else:
+                print(f"{c:<20s}: {v}", flush=True)
+    return PrintLoggedCallback

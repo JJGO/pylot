@@ -5,6 +5,6 @@ def Checkpoint(experiment, save_freq=10):
         nonlocal i
         i += 1
         if i % save_freq == 0:
-            experiment.checkpoint()
+            experiment.checkpoint(tag="{epoch:03d}")
 
     return CheckpointCallback

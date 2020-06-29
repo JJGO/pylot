@@ -3,4 +3,4 @@
 # TODO ReduceLR on plateau?
 
 from .checkpoint import Checkpoint
-from .log import LogParameters, TqdmParameters
+from .log import LogParameters, TqdmParameters, PrintLogged
