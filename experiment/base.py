@@ -11,11 +11,10 @@ import time
 import yaml
 
 import numpy as np
-import pandas as pd
 import torch
 
 from ..util import MeterCSVLogger, printc
-from .util import dict_recursive_update, expand_dots
+from .util import dict_recursive_update, expand_dots, allbut
 
 
 class Experiment:
@@ -34,7 +33,7 @@ class Experiment:
         # signal.signal(signal.SIGINT, self.SIGINT_handler)
         signal.signal(signal.SIGQUIT, self.SIGQUIT_handler)
 
-    def _init_new(self, cfg, **kwargs):
+    def _init_new(self, cfg, uid=None, **kwargs):
 
         default = {}
         # 1. Default config
@@ -68,9 +67,10 @@ class Experiment:
             cfg['experiment']['seed'] = 42
 
         self.cfg = cfg
-        self.generate_uid()
+        if uid is None:
+            uid = self.generate_uid()
+        self.uid = uid
         self.path = pathlib.Path(root) / self.uid
-        self.path.mkdir(exist_ok=True, parents=True)
         self.save_config()
 
     def _init_existing(self, path):
@@ -83,13 +83,14 @@ class Experiment:
         self.uid = self.path.stem
 
     def save_config(self):
+        self.path.mkdir(exist_ok=True, parents=True)
         path = self.path / 'config.yml'
         with open(path, 'w') as f:
             yaml.dump(self.cfg, f, indent=2)
 
     @property
     def digest(self):
-        cfg = {k: v for k, v in self.cfg.items() if k not in ('log',)}
+        cfg = allbut(self.cfg, ('log',))
         return hashlib.md5(yaml.dump(cfg, sort_keys=True).encode('utf-8')).hexdigest()
 
     def __hash__(self):
@@ -126,12 +127,12 @@ class Experiment:
         N = 4  # length of nonce
         now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         nonce = ''.join(random.choices(string.ascii_uppercase + string.digits, k=N))
-        self.uid = f"{now}-{nonce}-{self.digest}"
-        return self.uid
+        return f"{now}-{nonce}-{self.digest}"
 
     def build_logging(self):
         assert hasattr(self, "uid"), "UID needs to have been generated first"
         assert hasattr(self, "path"), "UID needs to have been generated first"
+        self.path.mkdir(exist_ok=True, parents=True)
         printc(f"Logging results to {self.path}", color='MAGENTA')
 
         self.csvlogger = MeterCSVLogger(self.path / 'logs.csv')
