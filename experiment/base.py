@@ -20,6 +20,7 @@ from .util import dict_recursive_update, expand_dots, allbut
 class Experiment:
 
     DEFAULT_CFG = pathlib.Path('default.yml')
+    NODEFAULT = object()
 
     def __init__(self, cfg=None, path=None, **kwargs):
         if path is not None:
@@ -136,21 +137,13 @@ class Experiment:
         printc(f"Logging results to {self.path}", color='MAGENTA')
 
         self.csvlogger = MeterCSVLogger(self.path / 'logs.csv')
-        self.csvlogger.set(epoch=None)
-        self.log_epoch_n = 0
 
     def log(self, *args, **kwargs):
         self.csvlogger.set(*args, **kwargs)
 
-    def log_epoch(self, epoch=None):
-        if epoch is not None:
-            self.log_epoch_n = epoch
-        self.log_epoch_n += 1
-
-        self.csvlogger.set(epoch=epoch)
+    def dump_logs(self):
         self.csvlogger.set(timestamp=time.time())
         self.csvlogger.flush()
-        self.csvlogger.set(epoch=self.log_epoch_n)
 
     # def SIGINT_handler(self, signal, frame):
     #     pass
@@ -177,3 +170,16 @@ class Experiment:
 
     def load(self):
         pass
+
+    def get_param(self, param, default=NODEFAULT):
+        mapping = self.cfg
+
+        for k in param.split('.'):
+            if k in mapping:
+                mapping = mapping[k]
+            else:
+                if default is self.NODEFAULT:
+                    raise LookupError(f"Could find param {param} in config")
+                return default
+
+        return mapping

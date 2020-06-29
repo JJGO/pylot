@@ -30,7 +30,8 @@ def expand_dots(d):
 def allbut(mapping, keys):
     mapping = copy.deepcopy(mapping)
     for k in keys:
-        del mapping[k]
+        if k in mapping:
+            del mapping[k]
     return mapping
 
 

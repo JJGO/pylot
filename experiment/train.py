@@ -1,5 +1,4 @@
 import pathlib
-import json
 
 from tqdm import tqdm
 
@@ -54,7 +53,7 @@ class TrainExperiment(Experiment):
         else:
             raise ValueError(f"Dataset {dataset} is not recognized")
 
-        self.build_dataloader(self, **data_kwargs['dataloader'])
+        self.build_dataloader(**data_kwargs['dataloader'])
 
     def build_dataloader(self, **dataloader_kwargs):
 
@@ -115,34 +114,33 @@ class TrainExperiment(Experiment):
         self.model.to(self.device)
         cudnn.benchmark = True   # For fast training.
 
-    def checkpoint(self, epoch=None):
+    def checkpoint(self, tag=None):
         checkpoint_path = self.path / 'checkpoints'
         checkpoint_path.mkdir(exist_ok=True, parents=True)
-        epoch = self.log_epoch_n if epoch is None else epoch
-        checkpoint_file = f'checkpoint-{epoch:03d}.pt'
+
+        tag = tag if tag is not None else 'last'
+        printc(f"Checkpointing with tag:{tag} at epoch:{self._epoch}", color='BLUE')
+        checkpoint_file = f'checkpoint.{tag}.pt'
         if not (checkpoint_path / checkpoint_file).exists():
             torch.save({
                 'model_state_dict': self.model.state_dict(),
-                'optim_state_dict': self.optim.state_dict()
+                'optim_state_dict': self.optim.state_dict(),
+                'epoch': self._epoch,
             }, checkpoint_path / checkpoint_file)
-            with open(checkpoint_path / 'state.json', 'w') as f:
-                json.dump({'epoch': epoch, 'file': checkpoint_file}, f)
 
-    def load(self):
+    def load(self, tag=None):
         self.to_device()
         self.build_logging()
         # Load model & optimizer
         checkpoint_path = self.path / 'checkpoints'
         if not checkpoint_path.exists():
-            self.log_epoch_n = 0
             printc("No checkpoints were found", color='ORANGE')
+            self._epoch = 0
             return
 
-        with open(checkpoint_path / 'state.json', 'r') as f:
-            state = json.load(f)
-
-        self.log_epoch_n = state['epoch']
-        checkpoint = torch.load(checkpoint_path / state['file'])
+        checkpoint_file = f"checkpoint.{tag}.pt"
+        checkpoint = torch.load(checkpoint_path / checkpoint_file)
+        self._epoch = checkpoint['epoch']
         self.load_model(checkpoint)
         self.load_optim(checkpoint)
 
@@ -190,36 +188,42 @@ class TrainExperiment(Experiment):
         try:
             for epoch in range(start, end):
                 printc(f"Start epoch {epoch}", color='YELLOW')
+                self._epoch = epoch
+                self.checkpoint(tag='last')
+                self.log(epoch=epoch)
                 self.train(epoch)
                 self.eval(epoch)
 
-                with torch.set_grad_enabled(False):
+                with torch.no_grad():
                     for cb in self.epoch_callbacks:
                         cb(self, epoch)
 
-                self.log_epoch(epoch)
+                self.dump_logs()
 
         except KeyboardInterrupt:
             printc(f"\nInterrupted at epoch {epoch}. Tearing Down", color='RED')
-            self.checkpoint(self.log_epoch_n-1)
+            self.checkpoint(tag='interrupt')
 
     def run_epoch(self, train, epoch=0):
+        progress = self.get_param('log.progress', True)
         if train:
             self.model.train()
-            prefix = 'train'
+            phase = 'train'
             dl = self.train_dl
         else:
             self.model.eval()
-            prefix = 'val'
+            phase = 'val'
             dl = self.val_dl
 
         total_loss = StatsMeter()
-
-        epoch_progress = tqdm(dl)
-        epoch_progress.set_description(f"{prefix.capitalize()} Epoch {epoch}/{self.epochs}")
-        epoch_iter = iter(epoch_progress)
-
         timer = StatsTimer()
+
+        if progress:
+            epoch_progress = tqdm(dl)
+            epoch_progress.set_description(f"{phase.capitalize()} Epoch {epoch}/{self.epochs}")
+            epoch_iter = iter(epoch_progress)
+        else:
+            epoch_iter = iter(dl)
 
         with torch.set_grad_enabled(train):
             for _ in range(len(dl)):
@@ -232,7 +236,7 @@ class TrainExperiment(Experiment):
                 if train:
                     with timer("t_backward"):
                         loss.backward()
-
+                    with timer("t_optim"):
                         self.optim.step()
                         self.optim.zero_grad()
 
@@ -241,11 +245,15 @@ class TrainExperiment(Experiment):
 
                 for cb in self.batch_callbacks:
                     cb(self, postfix)
-                epoch_progress.set_postfix(postfix)
+                if progress:
+                    epoch_progress.set_postfix(postfix)
 
         self.log({
-            f'{prefix}_loss': total_loss.mean,
-        }, timer.measurements)
+            f'{phase}_loss': total_loss.mean,
+        })
+
+        if train:
+            self.log(timer.measurements)
 
         return total_loss.mean
 
@@ -262,6 +270,6 @@ class TrainExperiment(Experiment):
         self.run_epochs()
 
     def resume(self):
-        last_epoch = self.log_epoch_n
-        printc(f"Resuming from epoch {last_epoch}\n {str(self)}", color='YELLOW')
-        self.run_epochs(start=last_epoch+1)
+        last_epoch = self._epoch
+        printc(f"Resuming from start of epoch {last_epoch}", color='YELLOW')
+        self.run_epochs(start=last_epoch)
