@@ -120,13 +120,12 @@ class TrainExperiment(Experiment):
 
         tag = tag if tag is not None else 'last'
         printc(f"Checkpointing with tag:{tag} at epoch:{self._epoch}", color='BLUE')
-        checkpoint_file = f'checkpoint.{tag}.pt'
-        if not (checkpoint_path / checkpoint_file).exists():
-            torch.save({
-                'model_state_dict': self.model.state_dict(),
-                'optim_state_dict': self.optim.state_dict(),
-                'epoch': self._epoch,
-            }, checkpoint_path / checkpoint_file)
+        checkpoint_file = f'{tag}.pt'
+        torch.save({
+            'model_state_dict': self.model.state_dict(),
+            'optim_state_dict': self.optim.state_dict(),
+            'epoch': self._epoch,
+        }, checkpoint_path / checkpoint_file)
 
     def load(self, tag=None):
         self.to_device()
@@ -138,11 +137,13 @@ class TrainExperiment(Experiment):
             self._epoch = 0
             return
 
-        checkpoint_file = f"checkpoint.{tag}.pt"
+        tag = tag if tag is not None else 'last'
+        checkpoint_file = f"{tag}.pt"
         checkpoint = torch.load(checkpoint_path / checkpoint_file)
         self._epoch = checkpoint['epoch']
         self.load_model(checkpoint)
         self.load_optim(checkpoint)
+        printc(f"Loaded checkpoint with tag:{tag}. Last epoch:{self._epoch}", color='BLUE')
 
     def build_logging(self):
         super().build_logging()
