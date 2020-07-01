@@ -49,19 +49,22 @@ class StatsTimer(Timer):
 
     def __init__(self, verbose=False, cuda=False, skip=0):
         super().__init__(verbose=verbose, cuda=cuda)
-        self.skip = defaultdict(lambda: skip)
+        self._skip = defaultdict(lambda: skip)
 
     def reset(self):
         self._measurements = defaultdict(StatsMeter)
 
     def _save(self, label, elapsed):
-        if self.skip[label] > 0:
-            self.skip[label] -= 1
+        if self._skip[label] > 0:
+            self._skip[label] -= 1
         else:
             self._measurements[label].add(elapsed)
 
     def _print_elapsed(self, label, elapsed):
-        if self.skip[label] > 0:
+        if self._skip[label] > 0:
             print(f"{label} took {elapsed}s (skipped)")
         else:
             print(f"{label} took {elapsed}s")
+
+    def skip(self, label, instances=1):
+        self._skip[label] += instances
