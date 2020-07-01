@@ -10,8 +10,8 @@ import sys
 import time
 import yaml
 
-import numpy as np
 import torch
+import numpy as np
 
 from ..util import MeterCSVLogger, printc
 from .util import dict_recursive_update, expand_dots, allbut
