@@ -59,5 +59,5 @@ def any_getattr(modules, attr):
     for module in reversed(modules):
         if hasattr(module, attr):
             return getattr(module, attr)
-    raise AttributeError(f"Attribute {attr} not found in any of {modules}")
+    raise ImportError(f"Attribute {attr} not found in any of {modules}")
 

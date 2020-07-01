@@ -61,18 +61,14 @@ class TrainExperiment(Experiment):
         self.val_dl = DataLoader(self.val_dataset, shuffle=False, **dataloader_kwargs)
 
     def build_model(self, model, weights=None, **model_kwargs):
-        if hasattr(models, model):
-            constructor = any_getattr(self.MODELS, model)
-            self.model = constructor(**model_kwargs)
-        else:
-            raise ValueError(f"Architecture {model} not found")
+        constructor = any_getattr(self.MODELS, model)
+        self.model = constructor(**model_kwargs)
 
         if weights is not None:
             self.load_model(weights)
 
     def build_loss(self, loss, flatten=False, **loss_kwargs):
-        if hasattr(nn, loss):
-            loss_func = any_getattr(self.LOSS, loss)(**loss_kwargs)
+        loss_func = any_getattr(self.LOSS, loss)(**loss_kwargs)
         if flatten:
             loss_func = flatten_loss(loss_func)
 
@@ -217,7 +213,7 @@ class TrainExperiment(Experiment):
             dl = self.val_dl
 
         total_loss = StatsMeter()
-        timer = StatsTimer()
+        timer = StatsTimer(cuda=torch.cuda.is_available())
 
         if progress:
             epoch_progress = tqdm(dl)
