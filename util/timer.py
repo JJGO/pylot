@@ -6,15 +6,23 @@ import torch
 
 from .meter import StatsMeter
 
+UNIT_FACTORS = {
+    's': 1,
+    'ms': 1e3,
+    'us': 1e6,
+    'ns': 1e9,
+    'm': 1 / 60,
+    'h': 1 / 3600
+}
+
 
 class Timer:
 
-    def __init__(self, verbose=False, cuda=False):
+    def __init__(self, verbose=False, unit='s'):
         self.verbose = verbose
         self.reset()
-        self.cuda = cuda
-        if self.cuda:
-            assert torch.cuda.is_available()
+        self.unit = unit
+        self._factor = UNIT_FACTORS[unit]
 
     def reset(self):
         self._measurements = {}
@@ -22,23 +30,15 @@ class Timer:
     @contextmanager
     def __call__(self, label=""):
 
-        if self.cuda:
-            torch.cuda.synchronize()
         start = time.time()
         yield
-        if self.cuda:
-            torch.cuda.synchronize()
         end = time.time()
-        if self.verbose:
-            self._print_elapsed(label, end - start)
         self._save(label, end - start)
 
-    def _print_elapsed(self, label, elapsed):
-        print(f"{label} took {elapsed}s")
-
     def _save(self, label, elapsed):
-
-        self._measurements[label] = elapsed
+        if self.verbose:
+            print(f"{label} took {elapsed}{self.unit}")
+        self._measurements[label] = elapsed * self._factor
 
     @property
     def measurements(self):
@@ -47,8 +47,8 @@ class Timer:
 
 class StatsTimer(Timer):
 
-    def __init__(self, verbose=False, cuda=False, skip=0):
-        super().__init__(verbose=verbose, cuda=cuda)
+    def __init__(self, verbose=False, unit='s', skip=0):
+        super().__init__(verbose=verbose, unit=unit)
         self._skip = defaultdict(lambda: skip)
 
     def reset(self):
