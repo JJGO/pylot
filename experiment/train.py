@@ -17,7 +17,7 @@ from .base import Experiment
 from .util import allbut, any_getattr
 from ..log import summary
 from ..loss import flatten_loss
-from ..util import printc, StatsMeter, StatsTimer
+from ..util import printc, StatsMeter, CUDATimer
 from .. import callbacks
 from .. import datasets
 from .. import models
@@ -106,8 +106,9 @@ class TrainExperiment(Experiment):
         # Torch CUDA config
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         if not torch.cuda.is_available():
-            printc("GPU NOT AVAILABLE, USING CPU!", color="ORANGE")
+            printc("GPU NOT AVAILABLE, USING CPU!", color="RED")
         self.model.to(self.device)
+        self.loss_func.to(self.device)
         cudnn.benchmark = True   # For fast training.
 
     def checkpoint(self, tag=None):
@@ -213,7 +214,7 @@ class TrainExperiment(Experiment):
             dl = self.val_dl
 
         total_loss = StatsMeter()
-        timer = StatsTimer(cuda=torch.cuda.is_available())
+        timer = CUDATimer(unit='ms', skip=10)
 
         if progress:
             epoch_progress = tqdm(dl)
