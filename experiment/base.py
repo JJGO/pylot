@@ -36,7 +36,7 @@ class Experiment:
 
     def _init_new(self, cfg, uid=None, **kwargs):
 
-        default = {}
+        default = {'experiment': {'seed': 42, 'type': f"{self.__class__.__name__}"}}
         # 1. Default config
         if Experiment.DEFAULT_CFG.exists():
             with open(Experiment.DEFAULT_CFG, 'r') as f:
@@ -52,22 +52,12 @@ class Experiment:
             cfg = default
         # 3. Forced kwargs
         kwargs = expand_dots(kwargs)
-        cfg = dict_recursive_update(cfg, kwargs)
+        self.cfg = dict_recursive_update(cfg, kwargs)
 
-        if 'root' in cfg:
-            root = pathlib.Path(cfg['root'])
-            del cfg['root']
-        else:
-            root = pathlib.Path()
+        root = pathlib.Path()
+        if self.get_param('log.root', False):
+            root = pathlib.Path(self.get_param('log.root'))
 
-        # Keep track of experiment properties like type, seed, ...
-        if 'experiment' not in cfg:
-            cfg['experiment'] = {}
-        cfg['experiment']['type'] = f"{self.__class__.__name__}"
-        if 'seed' not in cfg['experiment']:
-            cfg['experiment']['seed'] = 42
-
-        self.cfg = cfg
         if uid is None:
             uid = self.generate_uid()
         self.uid = uid
@@ -75,7 +65,6 @@ class Experiment:
         self.save_config()
 
     def _init_existing(self, path):
-        print(path)
         existing_cfg = pathlib.Path(path) / 'config.yml'
         assert existing_cfg.exists(), "Cannot find config.yml under the provided path"
         self.path = pathlib.Path(path)
