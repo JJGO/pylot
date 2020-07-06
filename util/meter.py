@@ -1,4 +1,6 @@
 from abc import abstractmethod
+import itertools
+from heapq import heappop, heappush
 import numpy as np
 # from collections import defaultdict
 
@@ -109,7 +111,7 @@ class StatsMeter(Meter):
     @property
     def flatvariance(self):
         # for datapoints which are arrays
-        return np.mean(self.variance+self.mean**2) - self.flatmean**2
+        return np.mean(self.variance + self.mean**2) - self.flatmean**2
 
     @property
     def flatstd(self):
@@ -160,12 +162,12 @@ class StatsMeter(Meter):
             S1, S2 = self.S, other.S
             # New stats
             n = n1 + n2
-            mu = n1/n * mu1 + n2/n * mu2
-            S = (S1 + n1 * mu1*mu1) + (S2 + n2 * mu2*mu2) - n * mu*mu
+            mu = n1 / n * mu1 + n2 / n * mu2
+            S = (S1 + n1 * mu1 * mu1) + (S2 + n2 * mu2 * mu2) - n * mu * mu
             return StatsMeter.from_raw_values(n, mu, S)
         if isinstance(other, (int, float)):
             # Add a fixed amount to all values. Only changes the mean
-            return StatsMeter.from_raw_values(self.n, self.mean+other, self.S)
+            return StatsMeter.from_raw_values(self.n, self.mean + other, self.S)
         else:
             raise TypeError("Can only add other groups or numbers")
 
@@ -174,7 +176,7 @@ class StatsMeter(Meter):
 
     def __mul__(self, k):
         # Multiply all values seen by some constant
-        return StatsMeter.from_raw_values(self.n, self.mean*k, self.S*k**2)
+        return StatsMeter.from_raw_values(self.n, self.mean * k, self.S * k**2)
 
     def asdict(self):
         return {'mean': self.mean, 'std': self.std}  #, 'n': self.n}
@@ -183,7 +185,7 @@ class StatsMeter(Meter):
 class MaxMinMeter(Meter):
 
     def __init__(self, iterable=None):
-        self. n = 0
+        self.n = 0
         self.max_ = float('-inf')
         self.min_ = float('inf')
         super().__init__(iterable)
@@ -205,6 +207,41 @@ class MaxMinMeter(Meter):
         return {'min': self.min, 'max': self.max}  #, 'n': self.n}
 
 
+class MedianMeter(Meter):
+
+    def __init__(self, iterable=None):
+        self.upper = []
+        self.lower = []
+        super().__init__(iterable)
+
+    def add(self, datum):
+        if len(self.lower) == 0 or datum <= -self.lower[0]:
+            heappush(self.lower, -datum)
+        else:
+            heappush(self.upper, datum)
+        if len(self.upper) > len(self.lower) + 1:
+            heappush(self.lower, -heappop(self.upper))
+        elif len(self.lower) > len(self.upper) + 1:
+            heappush(self.upper, -heappop(self.lower))
+
+    @property
+    def median(self):
+        if len(self.upper) == len(self.lower):
+            return (self.upper[0] - self.lower[0]) / 2
+        elif len(self.upper) > len(self.lower):
+            return self.upper[0]
+        else:
+            return - self.lower[0]
+
+    @property
+    def mad(self):
+        m = self.median
+        return np.median([abs(m - x) for x in itertools.chain(self.upper, self.lower)])
+
+    def asdict(self):
+        return {'median': self.median, 'mad': self.mad}
+
+
 class UnionMeter(Meter):
 
     def __init__(self, meters, iterable=None):
@@ -223,7 +260,6 @@ class UnionMeter(Meter):
         return d
 
     def __getattr__(self, attr):
-
         for meter in self.meters:
             if hasattr(meter, attr):
                 return getattr(meter, attr)
