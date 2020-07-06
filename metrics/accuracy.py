@@ -58,7 +58,7 @@ def accuracy(model, dataloader, topk=(1,)):
     accs = np.zeros(len(topk))
     with torch.no_grad():
 
-        for i, (input, target) in enumerate(dataloader):
+        for input, target in dataloader:
             input = input.to(device)
             target = target.to(device)
             output = model(input)

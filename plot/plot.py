@@ -1,8 +1,9 @@
 from collections import defaultdict
 from ..util import AutoMap
+from .cmap import Monokai
 import matplotlib.pyplot as plt
 
-COLORS = defaultdict(lambda: AutoMap(plt.get_cmap('Set1').colors))
+COLORS = defaultdict(lambda: AutoMap(Monokai.colors))
 LINES = defaultdict(lambda: AutoMap(['-', '--', ':', '-.']))
 MARKERS = defaultdict(lambda: AutoMap(['o', 's', 'v', '^', '<', '>', 'P']))
 # LINESTYLES = defaultdict(lambda: AutoMap(product(['-', '--', ':'], ['.', 's', '*'])))
