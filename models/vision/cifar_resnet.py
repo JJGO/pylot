@@ -153,7 +153,7 @@ def resnet_factory(filters, num_classes, weight_file):
             # TODO have a better solution for DataParallel models
             # For models trained with nn.DataParallel
             if list(weights.keys())[0].startswith("module."):
-                weights = {k[len("module.") :]: v for k, v in weights.items()}
+                weights = {k[len("module."):]: v for k, v in weights.items()}
             model.load_state_dict(weights)
         return model
 
@@ -166,10 +166,3 @@ resnet44 = resnet_factory([7, 7, 7], 10, "resnet44.th")
 resnet56 = resnet_factory([9, 9, 9], 10, "resnet56.th")
 resnet110 = resnet_factory([18, 18, 18], 10, "resnet110.th")
 resnet1202 = resnet_factory([200, 200, 200], 10, "resnet1202.th")
-
-resnet20_100 = resnet_factory([3, 3, 3], 100, "resnet20_100.th")
-resnet32_100 = resnet_factory([5, 5, 5], 100, "resnet32_100.th")
-resnet44_100 = resnet_factory([7, 7, 7], 100, "resnet44_100.th")
-resnet56_100 = resnet_factory([9, 9, 9], 100, "resnet56_100.th")
-resnet110_100 = resnet_factory([18, 18, 18], 100, "resnet110_100.th")
-resnet1202_100 = resnet_factory([200, 200, 200], 100, "resnet1202_100.th")
