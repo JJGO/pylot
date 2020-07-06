@@ -48,6 +48,7 @@ class TrainExperiment(Experiment):
         self._epoch = None
         self.batch_callbacks = None
         self.epoch_callbacks = None
+        self.device = None
 
         self.build_data(**self.cfg["data"])
         self.build_model(**self.cfg["model"])
@@ -125,9 +126,12 @@ class TrainExperiment(Experiment):
         self.loss_func.to(self.device)
         cudnn.benchmark = True  # For fast training.
 
+    @property
+    def checkpoint_path(self):
+        return self.path / "checkpoints"
+
     def checkpoint(self, tag=None):
-        checkpoint_path = self.path / "checkpoints"
-        checkpoint_path.mkdir(exist_ok=True, parents=True)
+        self.checkpoint_path.mkdir(exist_ok=True, parents=True)
 
         tag = tag if tag is not None else "last"
         printc(f"Checkpointing with tag:{tag} at epoch:{self._epoch}", color="BLUE")
@@ -138,22 +142,21 @@ class TrainExperiment(Experiment):
                 "optim_state_dict": self.optim.state_dict(),
                 "epoch": self._epoch,
             },
-            checkpoint_path / checkpoint_file,
+            self.checkpoint_path / checkpoint_file,
         )
 
     def load(self, tag=None):
         self.to_device()
         self.build_logging()
         # Load model & optimizer
-        checkpoint_path = self.path / "checkpoints"
-        if not checkpoint_path.exists():
+        if not self.checkpoint_path.exists():
             printc("No checkpoints were found", color="ORANGE")
             self._epoch = 0
             return
 
         tag = tag if tag is not None else "last"
         checkpoint_file = f"{tag}.pt"
-        checkpoint = torch.load(checkpoint_path / checkpoint_file)
+        checkpoint = torch.load(self.checkpoint_path / checkpoint_file)
         self._epoch = checkpoint["epoch"]
         self.load_model(checkpoint)
         self.load_optim(checkpoint)
@@ -164,7 +167,7 @@ class TrainExperiment(Experiment):
     def build_logging(self):
         super().build_logging()
 
-        # TODO Can this be done in the CPU
+        # TODO Can this be done in the CPU?
         # Sample a batch
         x, y = next(iter(self.train_dl))
         x, y = x.to(self.device), y.to(self.device)
