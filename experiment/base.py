@@ -10,42 +10,45 @@ import sys
 import time
 import yaml
 
-import torch
-import numpy as np
-
 from ..util import MeterCSVLogger, printc
-from .util import dict_recursive_update, expand_dots, allbut
+from .util import dict_recursive_update, expand_dots, allbut, fix_seed
 
 
 class Experiment:
 
-    DEFAULT_CFG = pathlib.Path('default.yml')
+    DEFAULT_CFG = pathlib.Path("default.yml")
     NODEFAULT = object()
 
     def __init__(self, cfg=None, path=None, **kwargs):
         if path is not None:
-            assert cfg is None, "Config must not be provided when loading an existing experiment"
-            assert kwargs == {}, "Keyword arguments must not be provided when loading an existing experiment"
+            assert (
+                cfg is None
+            ), "Config must not be provided when loading an existing experiment"
+            assert (
+                kwargs == {}
+            ), "Keyword arguments must not be provided when loading an existing experiment"
             self._init_existing(path)
         else:
             self._init_new(cfg, **kwargs)
 
-        self.fix_seed(self.cfg['experiment']['seed'])
+        fix_seed(self.cfg["experiment"]["seed"])
         # signal.signal(signal.SIGINT, self.SIGINT_handler)
         signal.signal(signal.SIGQUIT, self.SIGQUIT_handler)
 
+        self.csvlogger = None
+
     def _init_new(self, cfg, uid=None, **kwargs):
 
-        default = {'experiment': {'seed': 42, 'type': f"{self.__class__.__name__}"}}
+        default = {"experiment": {"seed": 42, "type": f"{self.__class__.__name__}"}}
         # 1. Default config
         if Experiment.DEFAULT_CFG.exists():
-            with open(Experiment.DEFAULT_CFG, 'r') as f:
+            with open(Experiment.DEFAULT_CFG, "r") as f:
                 default = yaml.load(f, Loader=yaml.FullLoader)
         # 2. cfg dict or file
         if cfg is not None:
             # File
             if isinstance(cfg, (str, pathlib.Path)):
-                with open(cfg, 'r') as f:
+                with open(cfg, "r") as f:
                     cfg = yaml.load(f, Loader=yaml.FullLoader)
             cfg = dict_recursive_update(default, cfg)
         else:
@@ -55,8 +58,8 @@ class Experiment:
         self.cfg = dict_recursive_update(cfg, kwargs)
 
         root = pathlib.Path()
-        if self.get_param('log.root', False):
-            root = pathlib.Path(self.get_param('log.root'))
+        if self.get_param("log.root", False):
+            root = pathlib.Path(self.get_param("log.root"))
 
         if uid is None:
             uid = self.generate_uid()
@@ -65,42 +68,26 @@ class Experiment:
         self.save_config()
 
     def _init_existing(self, path):
-        existing_cfg = pathlib.Path(path) / 'config.yml'
+        existing_cfg = pathlib.Path(path) / "config.yml"
         assert existing_cfg.exists(), "Cannot find config.yml under the provided path"
         self.path = pathlib.Path(path)
-        with open(self.path / 'config.yml', 'r') as f:
+        with open(self.path / "config.yml", "r") as f:
             self.cfg = yaml.load(f, Loader=yaml.FullLoader)
         self.uid = self.path.stem
 
     def save_config(self):
         self.path.mkdir(exist_ok=True, parents=True)
-        path = self.path / 'config.yml'
-        with open(path, 'w') as f:
+        path = self.path / "config.yml"
+        with open(path, "w") as f:
             yaml.dump(self.cfg, f, indent=2)
 
     @property
     def digest(self):
-        cfg = allbut(self.cfg, ('log',))
-        return hashlib.md5(yaml.dump(cfg, sort_keys=True).encode('utf-8')).hexdigest()
+        cfg = allbut(self.cfg, ("log",))
+        return hashlib.md5(yaml.dump(cfg, sort_keys=True).encode("utf-8")).hexdigest()
 
     def __hash__(self):
         return hash(self.digest)
-
-    def fix_seed(self, seed=42, deterministic=False):
-        # https://pytorch.org/docs/stable/notes/randomness.html
-
-        # Python
-        random.seed(seed)
-
-        # Numpy
-        np.random.seed(seed)
-
-        # PyTorch
-        torch.manual_seed(seed)
-
-        if deterministic:
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
 
     def generate_uid(self):
         """Returns a time sortable UID
@@ -116,16 +103,16 @@ class Experiment:
         random.seed(time.time())
         N = 4  # length of nonce
         now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        nonce = ''.join(random.choices(string.ascii_uppercase + string.digits, k=N))
+        nonce = "".join(random.choices(string.ascii_uppercase + string.digits, k=N))
         return f"{now}-{nonce}-{self.digest}"
 
     def build_logging(self):
         assert hasattr(self, "uid"), "UID needs to have been generated first"
         assert hasattr(self, "path"), "UID needs to have been generated first"
         self.path.mkdir(exist_ok=True, parents=True)
-        printc(f"Logging results to {self.path}", color='MAGENTA')
+        printc(f"Logging results to {self.path}", color="MAGENTA")
 
-        self.csvlogger = MeterCSVLogger(self.path / 'logs.csv')
+        self.csvlogger = MeterCSVLogger(self.path / "logs.csv")
 
     def log(self, *args, **kwargs):
         self.csvlogger.set(*args, **kwargs)
@@ -157,13 +144,13 @@ class Experiment:
     def resume(self):
         pass
 
-    def load(self):
+    def load(self, tag):
         pass
 
     def get_param(self, param, default=NODEFAULT):
         mapping = self.cfg
 
-        for k in param.split('.'):
+        for k in param.split("."):
             if k in mapping:
                 mapping = mapping[k]
             else:
