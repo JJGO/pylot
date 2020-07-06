@@ -6,13 +6,13 @@ from torchvision import transforms, datasets
 from .cache import IndexedImageDataset
 
 _constructors = {
-    'MNIST': datasets.MNIST,
-    'CIFAR10': datasets.CIFAR10,
-    'CIFAR100': datasets.CIFAR100,
-    'ImageNet': IndexedImageDataset,
-    'Places365': IndexedImageDataset,
-    'Miniplaces': IndexedImageDataset,
-    'TinyImageNet': IndexedImageDataset,
+    "MNIST": datasets.MNIST,
+    "CIFAR10": datasets.CIFAR10,
+    "CIFAR100": datasets.CIFAR100,
+    "ImageNet": IndexedImageDataset,
+    "Places365": IndexedImageDataset,
+    "Miniplaces": IndexedImageDataset,
+    "TinyImageNet": IndexedImageDataset,
 }
 
 
@@ -34,22 +34,23 @@ def dataset_path(dataset, path=None):
     """
     if path is None:
         # Look for the dataset in known paths
-        if 'DATAPATH' in os.environ:
-            path = os.environ['DATAPATH']
-            paths = [pathlib.Path(p) for p in path.split(':')]
+        if "DATAPATH" in os.environ:
+            path = os.environ["DATAPATH"]
+            paths = [pathlib.Path(p) for p in path.split(":")]
         else:
-            raise ValueError(f"No path specified. A path must be provided, \n \
-                           or the folder must be listed in your DATAPATH")
+            raise ValueError(
+                f"No path specified. A path must be provided, \n \
+                           or the folder must be listed in your DATAPATH"
+            )
 
-    paths = [pathlib.Path(p) for p in path.split(':')]
+    paths = [pathlib.Path(p) for p in path.split(":")]
 
     for p in paths:
         p = (p / dataset).resolve()
         if p.exists():
             # print(f"Found {dataset} under {p}")
             return p
-    else:
-        raise LookupError(f"Could not find {dataset} in {paths}")
+    raise LookupError(f"Could not find {dataset} in {paths}")
 
 
 def dataset_builder(dataset, train=True, normalize=None, preproc=None, path=None):
@@ -73,7 +74,7 @@ def dataset_builder(dataset, train=True, normalize=None, preproc=None, path=None
             preproc += [normalize]
         preproc = transforms.Compose(preproc)
 
-    kwargs = {'transform': preproc}
+    kwargs = {"transform": preproc}
 
     path = dataset_path(dataset, path)
 
@@ -85,8 +86,9 @@ def MNIST(train=True, path=None):
     """
     mean, std = 0.1307, 0.3081
     normalize = transforms.Normalize(mean=(mean,), std=(std,))
-    dataset = dataset_builder('MNIST', train, normalize, [], path)
+    dataset = dataset_builder("MNIST", train, normalize, [], path)
     dataset.shape = (1, 28, 28)
+    dataset.n_classes = 10
     return dataset
 
 
@@ -99,8 +101,9 @@ def CIFAR10(train=True, path=None):
         preproc = [transforms.RandomHorizontalFlip(), transforms.RandomCrop(32, 4)]
     else:
         preproc = []
-    dataset = dataset_builder('CIFAR10', train, normalize, preproc, path)
+    dataset = dataset_builder("CIFAR10", train, normalize, preproc, path)
     dataset.shape = (3, 32, 32)
+    dataset.n_classes = 10
     return dataset
 
 
@@ -113,8 +116,9 @@ def CIFAR100(train=True, path=None):
         preproc = [transforms.RandomHorizontalFlip(), transforms.RandomCrop(32, 4)]
     else:
         preproc = []
-    dataset = dataset_builder('CIFAR100', train, normalize, preproc, path)
+    dataset = dataset_builder("CIFAR100", train, normalize, preproc, path)
     dataset.shape = (3, 32, 32)
+    dataset.n_classes = 100
     return dataset
 
 
@@ -124,17 +128,18 @@ def ImageNet(train=True, path=None):
     # TODO Better data augmentation?
     # ImageNet loading from files can produce benign EXIF errors
     import warnings
+
     warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
     mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     normalize = transforms.Normalize(mean=mean, std=std)
     if train:
-        preproc = [transforms.RandomResizedCrop(224),
-                   transforms.RandomHorizontalFlip()]
+        preproc = [transforms.RandomResizedCrop(224), transforms.RandomHorizontalFlip()]
     else:
         preproc = [transforms.Resize(256), transforms.CenterCrop(224)]
-    dataset = dataset_builder('ImageNet', train, normalize, preproc, path)
+    dataset = dataset_builder("ImageNet", train, normalize, preproc, path)
     dataset.shape = (3, 224, 224)
+    dataset.n_classes = 1000
     return dataset
 
 
@@ -149,12 +154,12 @@ def Places365(train=True, path=None):
 
     normalize = transforms.Normalize(mean=mean, std=std)
     if train:
-        preproc = [transforms.RandomResizedCrop(224),
-                   transforms.RandomHorizontalFlip()]
+        preproc = [transforms.RandomResizedCrop(224), transforms.RandomHorizontalFlip()]
     else:
         preproc = [transforms.Resize(256), transforms.CenterCrop(224)]
-    dataset = dataset_builder('Places365', train, normalize, preproc, path)
+    dataset = dataset_builder("Places365", train, normalize, preproc, path)
     dataset.shape = (3, 224, 224)
+    dataset.n_classes = 365
     return dataset
 
 
@@ -169,8 +174,9 @@ def TinyImageNet(train=True, path=None):
         preproc = [transforms.RandomHorizontalFlip()]
     else:
         preproc = []
-    dataset = dataset_builder('TinyImageNet', train, normalize, preproc, path)
+    dataset = dataset_builder("TinyImageNet", train, normalize, preproc, path)
     dataset.shape = (3, 64, 64)
+    dataset.n_classes = 200
     return dataset
 
 
@@ -186,6 +192,7 @@ def Miniplaces(train=True, path=None):
         preproc = [transforms.RandomHorizontalFlip()]
     else:
         preproc = []
-    dataset = dataset_builder('Miniplaces', train, normalize, preproc, path)
+    dataset = dataset_builder("Miniplaces", train, normalize, preproc, path)
     dataset.shape = (3, 128, 128)
+    dataset.n_classes = 100
     return dataset
