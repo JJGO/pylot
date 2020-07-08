@@ -170,13 +170,13 @@ class TrainExperiment(Experiment):
         # TODO Can this be done in the CPU?
         # Sample a batch
         x, y = next(iter(self.train_dl))
-        x, y = x.to(self.device), y.to(self.device)
+        # x, y = x.to(self.device), y.to(self.device)
 
         # Save model summary
         summary_path = self.path / "summary.txt"
         if not summary_path.exists():
             with open(summary_path, "w") as f:
-                s = summary(self.model, x.shape[1:], echo=False)
+                s = summary(self.model, x.shape[1:], echo=False, device="cpu")
                 print(s, file=f)
 
                 print("\n\nOptim\n", file=f)
@@ -295,8 +295,8 @@ class TrainExperiment(Experiment):
         return self.run_epoch(False, epoch)
 
     def run(self):
-        self.to_device()
         self.build_logging()
+        self.to_device()
         printc(f"Running {str(self)}", color="YELLOW")
         self.run_epochs()
 
