@@ -61,7 +61,7 @@ class VisionClassificationTrainExperiment(TrainExperiment):
                         self.optim.zero_grad()
 
                 c1, c5 = correct(yhat, y, (1, 5))
-                meters[f"{phase}_loss"].add(loss.item() / dl.batch_size)
+                meters[f"{phase}_loss"].add(loss.item())
                 meters[f"{phase}_acc1"].add(c1 / dl.batch_size)
                 meters[f"{phase}_acc5"].add(c5 / dl.batch_size)
 

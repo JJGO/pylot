@@ -275,7 +275,7 @@ class TrainExperiment(Experiment):
                         self.optim.step()
                         self.optim.zero_grad()
 
-                meters[f"{phase}_loss"].add(loss.item() / dl.batch_size)
+                meters[f"{phase}_loss"].add(loss.item())
 
                 postfix = {k: v.mean for k, v in meters.items()}
 
