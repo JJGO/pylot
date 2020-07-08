@@ -34,6 +34,8 @@ class VisionClassificationTrainExperiment(TrainExperiment):
 
         meters = defaultdict(StatsMeter)
         timer = CUDATimer(unit="ms", skip=10)
+        if not self.get_param("log.timing", False):
+            timer.disable()
 
         epoch_iter = iter(dl)
         if progress:
