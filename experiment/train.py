@@ -146,14 +146,16 @@ class TrainExperiment(Experiment):
         )
 
     def load(self, tag=None):
-        self.to_device()
         self.build_logging()
+        self.to_device()
         # Load model & optimizer
         if not self.checkpoint_path.exists():
             printc("No checkpoints were found", color="ORANGE")
             self._epoch = 0
             return
+        self.reload(tag=tag)
 
+    def reload(self, tag=None):
         tag = tag if tag is not None else "last"
         checkpoint_file = f"{tag}.pt"
         checkpoint = torch.load(self.checkpoint_path / checkpoint_file)
