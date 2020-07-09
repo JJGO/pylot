@@ -22,7 +22,7 @@ class VisionClassificationTrainExperiment(TrainExperiment):
         assert clf.out_features == self.train_dataset.n_classes
 
     def run_epoch(self, train, epoch=0):
-        progress = self.get_param("log.progress", True)
+        progress = self.get_param("log.progress", False)
         if train:
             self.model.train()
             phase = "train"
@@ -73,7 +73,7 @@ class VisionClassificationTrainExperiment(TrainExperiment):
                 if progress:
                     epoch_progress.set_postfix(postfix)
 
-        if train:
+        if train and self.get_param("log.timing", False):
             self.log(timer.measurements)
 
         self.log(meters)

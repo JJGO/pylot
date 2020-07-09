@@ -169,14 +169,13 @@ class TrainExperiment(Experiment):
     def build_logging(self):
         super().build_logging()
 
-        # TODO Can this be done in the CPU?
         # Sample a batch
         x, y = next(iter(self.train_dl))
         # x, y = x.to(self.device), y.to(self.device)
 
         # Save model summary
         summary_path = self.path / "summary.txt"
-        if not summary_path.exists():
+        if self.get_param("log.summary", True) and not summary_path.exists():
             with open(summary_path, "w") as f:
                 s = summary(self.model, x.shape[1:], echo=False, device="cpu")
                 print(s, file=f)
@@ -186,7 +185,10 @@ class TrainExperiment(Experiment):
 
         # Save model topology
         topology_path = self.path / "topology"
-        if not topology_path.with_suffix(".pdf").exists():
+        if (
+            self.get_param("log.topology", False)
+            and not topology_path.with_suffix(".pdf").exists()
+        ):
             yhat = self.model(x)
             loss = self.loss_func(yhat, y)
             g = make_dot(loss)
@@ -237,9 +239,10 @@ class TrainExperiment(Experiment):
         except KeyboardInterrupt:
             printc(f"\nInterrupted at epoch {epoch}. Tearing Down", color="RED")
             self.checkpoint(tag="interrupt")
+        self.checkpoint(tag="last")
 
     def run_epoch(self, train, epoch=0):
-        progress = self.get_param("log.progress", True)
+        progress = self.get_param("log.progress", False)
         if train:
             self.model.train()
             phase = "train"
@@ -287,7 +290,7 @@ class TrainExperiment(Experiment):
                 if progress:
                     epoch_progress.set_postfix(postfix)
 
-        if train:
+        if train and self.get_param("log.timing", False):
             self.log(timer.measurements)
 
         self.log(meters)
