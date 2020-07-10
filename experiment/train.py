@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.backends import cudnn
 import torch.optim
+from torch.optim import lr_scheduler
 
 import torchvision.datasets
 import torchvision.models
@@ -31,6 +32,7 @@ class TrainExperiment(Experiment):
     CALLBACKS = [callbacks]
     LOSS = [torch.nn, custom_loss]
     OPTIMS = [torch.optim]
+    SCHEDULERS = [lr_scheduler]
 
     def __init__(self, cfg=None, **kwargs):
 
@@ -89,33 +91,53 @@ class TrainExperiment(Experiment):
 
         self.loss_func = loss_func
 
-    def build_train(self, optim, epochs, optim_state=None, **optim_kwargs):
+    def build_train(self, optim, epochs, scheduler=None, warmup=None):
 
         self.epochs = epochs
 
         # Optim
-        if isinstance(optim, str):
+        if isinstance(optim, dict):
+            optim, optim_kwargs = optim["optim"], allbut(optim, ["optim", "state"])
             constructor = any_getattr(self.OPTIMS, optim)
             optim = constructor(self.model.parameters(), **optim_kwargs)
-
         self.optim = optim
-
-        if optim_state is not None:
+        optim_state = self.get_param("train.optim.state", None)
+        if optim_state:
             self.load_optim(optim_state)
 
-    def load_model(self, checkpoint):
+        # Scheduler
+        self.scheduler = scheduler
+        if scheduler is not None:
+            scheduler, scheduler_kwargs = (
+                scheduler["scheduler"],
+                allbut(scheduler, ["scheduler", "state"]),
+            )
+            constructor = any_getattr(self.SCHEDULERS, scheduler)
+            self.scheduler = constructor(self.optim, **scheduler_kwargs)
+
+        if warmup is not None:
+            warmup_period = len(self.train_dl) * warmup
+            self.scheduler = WarmupScheduler(warmup_period, self.scheduler)
+
+        scheduler_state = self.get_param("train.scheduler.state", None)
+        if scheduler_state:
+            self.load_scheduler(scheduler_state)
+
+    def _load_module(self, checkpoint, module):
         if isinstance(checkpoint, (str, pathlib.Path)):
             checkpoint = pathlib.Path(checkpoint)
             assert checkpoint.exists(), f"Checkpoint path {checkpoint} does not exist"
             checkpoint = torch.load(checkpoint)
-        self.model.load_state_dict(checkpoint["model_state_dict"])
+        getattr(self, module).load_state_dict(checkpoint[f"{module}_state_dict"])
+
+    def load_model(self, checkpoint):
+        self._load_module(checkpoint, "model")
 
     def load_optim(self, checkpoint):
-        if isinstance(checkpoint, (str, pathlib.Path)):
-            checkpoint = pathlib.Path(checkpoint)
-            assert checkpoint.exists(), f"Checkpoint path {checkpoint} does not exist"
-            checkpoint = torch.load(checkpoint)
-        self.optim.load_state_dict(checkpoint["optim_state_dict"])
+        self._load_module(checkpoint, "optim")
+
+    def load_scheduler(self, checkpoint):
+        self._load_module(checkpoint, "scheduler")
 
     def to_device(self):
         # Torch CUDA config
@@ -136,14 +158,15 @@ class TrainExperiment(Experiment):
         tag = tag if tag is not None else "last"
         printc(f"Checkpointing with tag:{tag} at epoch:{self._epoch}", color="BLUE")
         checkpoint_file = f"{tag}.pt"
-        torch.save(
-            {
-                "model_state_dict": self.model.state_dict(),
-                "optim_state_dict": self.optim.state_dict(),
-                "epoch": self._epoch,
-            },
-            self.checkpoint_path / checkpoint_file,
-        )
+        state = {
+            "model_state_dict": self.model.state_dict(),
+            "optim_state_dict": self.optim.state_dict(),
+            "epoch": self._epoch,
+        }
+        if self.scheduler is not None:
+            state["scheduler"] = self.scheduler.state_dict()
+
+        torch.save(state, self.checkpoint_path / checkpoint_file)
 
     def load(self, tag=None):
         self.build_logging()
@@ -162,6 +185,8 @@ class TrainExperiment(Experiment):
         self._epoch = checkpoint["epoch"]
         self.load_model(checkpoint)
         self.load_optim(checkpoint)
+        if self.scheduler is not None:
+            self.load_scheduler(checkpoint)
         printc(
             f"Loaded checkpoint with tag:{tag}. Last epoch:{self._epoch}", color="BLUE"
         )
@@ -229,6 +254,8 @@ class TrainExperiment(Experiment):
                 self.log(epoch=epoch)
                 self.train(epoch)
                 self.eval(epoch)
+                if self.scheduler:
+                    self.scheduler.step()
 
                 with torch.no_grad():
                     for cb in self.epoch_callbacks:
