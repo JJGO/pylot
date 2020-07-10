@@ -1,7 +1,7 @@
 def Checkpoint(experiment, save_freq=1):
     i = 0
 
-    def CheckpointCallback(experiment, epoch):
+    def CheckpointCallback(epoch):
         nonlocal i
         i += 1
         if i % save_freq == 0:

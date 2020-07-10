@@ -3,5 +3,5 @@
 # TODO ReduceLR on plateau?
 
 from .checkpoint import Checkpoint
-from .log import LogParameters, TqdmParameters, PrintLogged
+from .log import LogParameters, TqdmParameters, PrintLogged, ETA
 from .debug import nvidia_smi
