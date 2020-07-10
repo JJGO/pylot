@@ -210,10 +210,8 @@ class TrainExperiment(Experiment):
 
         # Save model topology
         topology_path = self.path / "topology"
-        if (
-            self.get_param("log.topology", False)
-            and not topology_path.with_suffix(".pdf").exists()
-        ):
+        topology_pdf_path = topology_path.with_suffix(".pdf")
+        if self.get_param("log.topology", False) and not topology_pdf_path.exists():
             yhat = self.model(x)
             loss = self.loss_func(yhat, y)
             g = make_dot(loss)
@@ -259,7 +257,7 @@ class TrainExperiment(Experiment):
 
                 with torch.no_grad():
                     for cb in self.epoch_callbacks:
-                        cb(self, epoch)
+                        cb(epoch)
 
                 self.dump_logs()
 
@@ -270,6 +268,7 @@ class TrainExperiment(Experiment):
 
     def run_epoch(self, train, epoch=0):
         progress = self.get_param("log.progress", False)
+        timing = self.get_param("log.timing", False)
         if train:
             self.model.train()
             phase = "train"
@@ -281,7 +280,7 @@ class TrainExperiment(Experiment):
 
         meters = defaultdict(StatsMeter)
         timer = CUDATimer(unit="ms", skip=10)
-        if not self.get_param("log.timing", False):
+        if not timing:
             timer.disable()
 
         epoch_iter = iter(dl)
@@ -308,6 +307,7 @@ class TrainExperiment(Experiment):
                         self.optim.zero_grad()
 
                 meters[f"{phase}_loss"].add(loss.item())
+                self.compute_metrics(phase, meters, loss, y, yhat)
 
                 postfix = {k: v.mean for k, v in meters.items()}
 
@@ -317,10 +317,15 @@ class TrainExperiment(Experiment):
                 if progress:
                     epoch_progress.set_postfix(postfix)
 
-        if train and self.get_param("log.timing", False):
-            self.log(timer.measurements)
+        if train:
+            self.log(lr=self.optim.param_groups[0]["lr"])
+            if timing:
+                self.log(timer.measurements)
 
         self.log(meters)
+
+    def compute_metrics(self, phase, meters, loss, y, yhat):
+        pass
 
     def train(self, epoch=0):
         return self.run_epoch(True, epoch)
