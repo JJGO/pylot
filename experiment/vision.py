@@ -1,12 +1,7 @@
-from collections import defaultdict
-
-import torch
-from tqdm import tqdm
+from pylot.models.vision import replace_head, get_classifier_module
 
 from .train import TrainExperiment
-from ..util import StatsMeter, CUDATimer
 from ..metrics import correct
-from pylot.models.vision import replace_head, get_classifier_module
 
 
 class VisionClassificationTrainExperiment(TrainExperiment):
@@ -14,6 +9,8 @@ class VisionClassificationTrainExperiment(TrainExperiment):
     """
 
     def build_model(self, model, **model_kwargs):
+        # Replace classifier layer (i.e. pre-softmax)
+        # So #-of-classes is correct
         super().build_model(model, **model_kwargs)
         clf = get_classifier_module(self.model)
         if clf.out_features != self.train_dataset.n_classes:

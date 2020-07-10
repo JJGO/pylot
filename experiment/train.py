@@ -19,6 +19,7 @@ from .util import allbut, any_getattr
 from ..log import summary
 from ..loss import flatten_loss
 from ..util import printc, StatsMeter, CUDATimer
+from ..scheduler import WarmupScheduler
 from .. import callbacks
 from .. import datasets
 from .. import models
@@ -303,6 +304,8 @@ class TrainExperiment(Experiment):
                     with timer("t_backward"):
                         loss.backward()
                     with timer("t_optim"):
+                        if isinstance(self.scheduler, WarmupScheduler):
+                            self.scheduler.warmup_step()
                         self.optim.step()
                         self.optim.zero_grad()
 
