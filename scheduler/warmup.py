@@ -1,9 +1,19 @@
+import warnings
+from ..util import printc
+
+
 class WarmupScheduler:
-    def __init__(self, warmup_period, scheduler=None, last_step=0):
+    def __init__(self, warmup_period, scheduler=None, last_step=0, skip=None):
+        # Period is in Iterations
+        # Skip is in epochs and says whether to skip the scheduler `skip` steps
+        # so we linearly go to the correct target learning rate
         self.warmup_period = warmup_period
         self.scheduler = scheduler
         self.last_step = last_step
-        self.offset = 0
+        if skip is not None:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                self.scheduler.step(skip - 1)
         self.target_lrs = [pg["lr"] for pg in self.scheduler.optimizer.param_groups]
 
     def state_dict(self):
@@ -30,11 +40,8 @@ class WarmupScheduler:
 
     def step(self, epoch=None):
         if self.last_step < self.warmup_period:
-            self.offset += 1
             return
         if self.scheduler is not None:
-            if epoch is not None:
-                epoch = epoch - self.offset
             self.scheduler.step(epoch)
 
     def warmup_step(self, step=None):

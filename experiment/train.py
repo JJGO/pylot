@@ -118,7 +118,8 @@ class TrainExperiment(Experiment):
 
         if warmup is not None:
             warmup_period = len(self.train_dl) * warmup
-            self.scheduler = WarmupScheduler(warmup_period, self.scheduler)
+            # We jump the scheduler ahead so warmup reaches the correct point
+            self.scheduler = WarmupScheduler(warmup_period, self.scheduler, skip=warmup)
 
         scheduler_state = self.get_param("train.scheduler.state", None)
         if scheduler_state:
