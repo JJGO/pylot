@@ -38,6 +38,8 @@ if __name__ == "__main__":
 
         delete = False
         logfile = expdir / "logs.csv"
+        if not logfile.exists():
+            logfile = expdir / "0" / "logs.csv"
         if logfile.exists():
             df = pd.read_csv(logfile)
             if len(df) < args.epochs:
