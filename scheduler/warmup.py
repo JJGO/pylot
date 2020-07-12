@@ -1,5 +1,21 @@
+from contextlib import contextmanager
 import warnings
-from ..util import printc
+
+
+@contextmanager
+def momentum_correction(optim):
+    if "momentum" not in optim.defaults:
+        yield
+        return
+    lrs_old = [pg["lr"] for pg in optim.param_groups]
+    momentum = optim.defaults["momentum"]
+    yield
+    for pg, lr_old in zip(optim.param_groups, lrs_old):
+        lr = pg["lr"]
+        if lr > lr_old:
+            pg["momentum"] = lr / lr_old * momentum
+        else:
+            pg["momentum"] = momentum
 
 
 class WarmupScheduler:
@@ -42,7 +58,8 @@ class WarmupScheduler:
         if self.last_step < self.warmup_period:
             return
         if self.scheduler is not None:
-            self.scheduler.step(epoch)
+            with momentum_correction(self.scheduler.optimizer):
+                self.scheduler.step(epoch)
 
     def warmup_step(self, step=None):
         if self.last_step >= self.warmup_period:
@@ -52,9 +69,10 @@ class WarmupScheduler:
             step = self.last_step + 1
         self.last_step = step
 
-        for i, pg in enumerate(self.scheduler.optimizer.param_groups):
-            omega = self.warmup_factor(step)
-            pg["lr"] = self.target_lrs[i] * omega
+        with momentum_correction(self.scheduler.optimizer):
+            for i, pg in enumerate(self.scheduler.optimizer.param_groups):
+                omega = self.warmup_factor(step)
+                pg["lr"] = self.target_lrs[i] * omega
 
     def warmup_factor(self, step):
         """ Computes Linear warmup
