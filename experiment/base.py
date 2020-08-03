@@ -11,7 +11,8 @@ import time
 import yaml
 
 from ..util import MeterCSVLogger, printc
-from .util import dict_recursive_update, expand_dots, allbut, fix_seed
+from ..util import dict_recursive_update, expand_dots, allbut
+from .util import fix_seed
 
 
 class Experiment:

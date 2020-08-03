@@ -15,10 +15,10 @@ import torchvision.models
 from torchviz import make_dot
 
 from .base import Experiment
-from .util import allbut, any_getattr
+from .util import any_getattr
 from ..log import summary
 from ..loss import flatten_loss
-from ..util import printc, StatsMeter, CUDATimer
+from ..util import printc, StatsMeter, CUDATimer, allbut
 from ..scheduler import WarmupScheduler
 from .. import callbacks
 from .. import datasets

@@ -2,7 +2,8 @@ import yaml
 import hashlib
 from collections.abc import Mapping, MutableMapping
 
-from .util import dict_recursive_update, expand_dots, expand_keys
+# from .util import dict_recursive_update, expand_dots, expand_keys
+from ..util import allbut, expand_keys
 
 
 class Config(MutableMapping):
