@@ -17,3 +17,7 @@ Monokai = ListedColormap(
 )
 
 plt.register_cmap("Monokai", Monokai)
+Cyberpunk = ListedColormap(
+    ["#08F7FE", "#FE53BB", "#F5D300", "#00ff41", "#ff0000", "#9467bd"]
+)
+plt.register_cmap("Cyberpunk", Cyberpunk)

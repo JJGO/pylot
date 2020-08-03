@@ -1,5 +1,3 @@
-import torch
-
 def flatten_loss(loss_func):
 
     def flattened_loss(yhat, y):
