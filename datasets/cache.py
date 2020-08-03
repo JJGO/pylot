@@ -2,7 +2,6 @@ import json
 import os
 import pathlib
 
-from torch.utils.data import Dataset
 from torchvision.datasets import VisionDataset
 from torchvision.datasets.folder import make_dataset, IMG_EXTENSIONS, default_loader
 

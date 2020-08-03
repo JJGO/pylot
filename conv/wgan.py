@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from ..loss.wgan import gradient_penalty, G_wgan, D_wgan_gp
+# from ..loss.wgan import gradient_penalty, G_wgan, D_wgan_gp
 
 from .encoder import ConvEncoder
 from .decoder import ConvDecoder
