@@ -25,7 +25,19 @@ def infer_norm(array):
     return None
 
 
-def factor_plot(data, x, y, hue, col, row, style, xlog=False, ylog=False, **kwargs):
+def factor_plot(
+    data,
+    x,
+    y,
+    hue,
+    col,
+    row,
+    style,
+    xlog=False,
+    ylog=False,
+    palette=viridis_high,
+    **kwargs
+):
     data = filter_df(data, **kwargs)
     if len(data) == 0:
         warnings.warn("Empty dataset")
@@ -43,7 +55,7 @@ def factor_plot(data, x, y, hue, col, row, style, xlog=False, ylog=False, **kwar
         data=data,
         kind="line",
         legend="full",
-        palette=viridis_high,
+        palette=palette,
         col=col,
         row=row,
         style=style,
@@ -64,5 +76,5 @@ def factor_plot(data, x, y, hue, col, row, style, xlog=False, ylog=False, **kwar
     return fig
 
 
-def factor_plot_df(data):
-    return functools.partial(factor_plot, data)
+def factor_plot_df(data, palette=viridis_high):
+    return functools.partial(factor_plot, data, palette=palette)
