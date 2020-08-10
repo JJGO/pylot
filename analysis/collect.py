@@ -1,4 +1,5 @@
 from collections import Counter
+import itertools
 import pathlib
 
 import pandas as pd
@@ -49,14 +50,20 @@ class ResultsLoader:
     def __init__(self, cache_file="/tmp/pylot-results.cache"):
         self.filecache = FileCache(cache_file)
 
-    def load_configs(self, path, shorthand=True, dedup=True):
+    def load_configs(self, *paths, shorthand=True, dedup=True):
         columns = {}
 
-        folders = pathlib.Path(path).iterdir
-        total = sum(1 for _ in folders())
+        # folders = pathlib.Path(path).iterdir
+        folders = itertools.chain.from_iterable(
+            pathlib.Path(path).iterdir() for path in paths
+        )
+        total = sum(1 for _ in folders)
+        folders = itertools.chain.from_iterable(
+            pathlib.Path(path).iterdir() for path in paths
+        )
         paths = []
 
-        for i, folder in enumerate(tqdm(folders(), total=total)):
+        for i, folder in enumerate(tqdm(folders, total=total)):
             cfg = self.filecache.get(folder / "config.yml")
             if cfg is None:
                 continue
@@ -80,8 +87,8 @@ class ResultsLoader:
             return df, dedup_df(df)
         return df
 
-    def load_logs(self, path, shorthand=True, dedup=True):
-        df = self.load_configs(path, shorthand=False, dedup=dedup)
+    def load_logs(self, *paths, shorthand=True, dedup=True):
+        df = self.load_configs(*paths, shorthand=False, dedup=dedup)
         if dedup:
             df, uniqs = df
 
@@ -110,8 +117,10 @@ class ResultsLoader:
             return (full_df, uniqs), exp_cols, log_cols
         return full_df, exp_cols, log_cols
 
-    def load_agg_logs(self, path, agg=None, shorthand=True, dedup=True):
-        df, exp_cols, log_cols = self.load_logs(path, shorthand=shorthand, dedup=dedup)
+    def load_agg_logs(self, *paths, agg=None, shorthand=True, dedup=True):
+        df, exp_cols, log_cols = self.load_logs(
+            *paths, shorthand=shorthand, dedup=dedup
+        )
         if dedup:
             df, uniqs = df
 
@@ -135,7 +144,7 @@ class ResultsLoader:
             col if agg == "" else f"{agg}_{col}" for col, agg in agg_df.columns.values
         ]
 
-        exp_df = self.load_configs(path, shorthand=shorthand, dedup=dedup)
+        exp_df = self.load_configs(*paths, shorthand=shorthand, dedup=dedup)
         if dedup:
             exp_df, _ = exp_df
 
