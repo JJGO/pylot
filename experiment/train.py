@@ -167,7 +167,7 @@ class TrainExperiment(Experiment):
             "epoch": self._epoch,
         }
         if self.scheduler is not None:
-            state["scheduler"] = self.scheduler.state_dict()
+            state["scheduler_state_dict"] = self.scheduler.state_dict()
 
         torch.save(state, self.checkpoint_path / checkpoint_file)
 
