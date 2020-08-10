@@ -33,11 +33,13 @@ def shorthand_columns(df, return_dict=False):
 
 def dedup_df(df):
     uniq_cols = []
+    uniq_vals = []
     for c in df.columns:
-        if df[c].nunique() == 1:
-            uniq_cols.append([c, df[c].unique()[0]])
-    df.drop(columns=[c for c, _ in uniq_cols], inplace=True)
-    return pd.DataFrame(data=uniq_cols, columns=["param", "value"])
+        if df[c].nunique(dropna=False) == 1:
+            uniq_cols.append(c)
+            uniq_vals.append([df[c].unique()[0]])
+    df.drop(columns=uniq_cols, inplace=True)
+    return pd.DataFrame(data=uniq_vals, index=uniq_cols, columns=["value"])
 
 
 def list2tuple(val):
