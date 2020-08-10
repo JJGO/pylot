@@ -32,3 +32,11 @@ def group_mean_std(df):
                 df[prefix] = df[c]
     df.drop(columns=drop)
     return df
+
+
+def move_df(df, root):
+    root = pathlib.Path(root)
+    paths = df.path.values
+    for path in paths:
+        target = root / path.name
+        path.replace(target)
