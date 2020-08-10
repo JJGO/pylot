@@ -178,24 +178,27 @@ def merge_std(df):
 
 
 # # FIXME DEPRECATED, left for compatibility
-# def df_from_results(results_path):
-#     columns = {}
+import yaml
 
-#     folders = pathlib.Path(results_path).iterdir()
-#     paths = []
-#     for i, folder in enumerate(tqdm(folders)):
-#         with open(folder / "config.yml", "r") as f:
-#             cfg = yaml.load(f, Loader=yaml.FullLoader)
 
-#         ed = delete_with_prefix(expand_keys(cfg), "log")
+def df_from_results(results_path):
+    columns = {}
 
-#         for c in columns:
-#             columns[c].append(ed.get(c, None))
-#         for c in ed:
-#             if c not in columns:
-#                 columns[c] = [None] * i
-#                 columns[c].append(ed[c])
-#         paths.append(folder)
-#     columns["experiment.path"] = paths
-#     df = pd.DataFrame.from_dict(columns)
-#     return df
+    folders = pathlib.Path(results_path).iterdir()
+    paths = []
+    for i, folder in enumerate(tqdm(folders)):
+        with open(folder / "config.yml", "r") as f:
+            cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+        ed = delete_with_prefix(expand_keys(cfg), "log")
+
+        for c in columns:
+            columns[c].append(ed.get(c, None))
+        for c in ed:
+            if c not in columns:
+                columns[c] = [None] * i
+                columns[c].append(ed[c])
+        paths.append(folder)
+    columns["experiment.path"] = paths
+    df = pd.DataFrame.from_dict(columns)
+    return df
