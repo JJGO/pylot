@@ -317,7 +317,7 @@ class TrainExperiment(Experiment):
                 postfix = {k: v.mean for k, v in meters.items()}
 
                 for cb in self.batch_callbacks:
-                    cb(self, postfix)
+                    cb(postfix)
 
                 if progress:
                     epoch_progress.set_postfix(postfix)
