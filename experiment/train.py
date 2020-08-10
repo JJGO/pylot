@@ -147,7 +147,8 @@ class TrainExperiment(Experiment):
         if not torch.cuda.is_available():
             printc("GPU NOT AVAILABLE, USING CPU!", color="RED")
         self.model.to(self.device)
-        self.loss_func.to(self.device)
+        if isinstance(self.loss_func, torch.nn.Module):
+            self.loss_func.to(self.device)
         cudnn.benchmark = True  # For fast training.
 
     @property
