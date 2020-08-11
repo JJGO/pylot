@@ -1,3 +1,5 @@
+import pathlib
+
 def filter_df(df, **kwargs):
     for k, vs in kwargs.items():
         if not isinstance(vs, list):
@@ -36,6 +38,7 @@ def group_mean_std(df):
 
 def move_df(df, root):
     root = pathlib.Path(root)
+    root.mkdir(parents=True, exist_ok=True)
     paths = df.path.values
     for path in paths:
         target = root / path.name
