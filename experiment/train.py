@@ -295,7 +295,7 @@ class TrainExperiment(Experiment):
             epoch_iter = iter(epoch_progress)
 
         with torch.set_grad_enabled(train):
-            for _ in range(len(dl)):
+            for i in range(len(dl)):
                 with timer("t_data"):
                     x, y = next(epoch_iter)
                     x, y = x.to(self.device), y.to(self.device)
@@ -317,7 +317,7 @@ class TrainExperiment(Experiment):
                 postfix = {k: v.mean for k, v in meters.items()}
 
                 for cb in self.batch_callbacks:
-                    cb(postfix)
+                    cb(epoch, i, postfix)
 
                 if progress:
                     epoch_progress.set_postfix(postfix)
