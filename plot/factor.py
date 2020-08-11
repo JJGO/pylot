@@ -36,6 +36,7 @@ def factor_plot(
     xlog=False,
     ylog=False,
     palette=viridis_high,
+    col_wrap=None,
     **kwargs
 ):
     data = filter_df(data, **kwargs)
@@ -65,6 +66,7 @@ def factor_plot(
         height=height,
         aspect=aspect,
         markersize=5,
+        col_wrap=col_wrap,
         err_style="band",
     )
     if xlog:
@@ -76,5 +78,5 @@ def factor_plot(
     return fig
 
 
-def factor_plot_df(data, palette=viridis_high):
-    return functools.partial(factor_plot, data, palette=palette)
+def factor_plot_df(data, palette=viridis_high, col_wrap=None):
+    return functools.partial(factor_plot, data, palette=palette, col_wrap=col_wrap)
