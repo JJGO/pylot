@@ -21,7 +21,7 @@ def LogParameters(experiment, parameters):
 
 
 def TqdmParameters(experiment, parameters):
-    def TqdmParametersCallback(epoch, iteration, postfix):
+    def TqdmParametersCallback(train, epoch, iteration, postfix):
         param_dict = {}
         for parameter in parameters:
             param = getattr(experiment.model, parameter)
