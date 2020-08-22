@@ -1,5 +1,6 @@
 import pathlib
 
+
 def filter_df(df, **kwargs):
     for k, vs in kwargs.items():
         if not isinstance(vs, list):
@@ -41,5 +42,7 @@ def move_df(df, root):
     root.mkdir(parents=True, exist_ok=True)
     paths = df.path.values
     for path in paths:
+        if not path.exists():
+            continue
         target = root / path.name
         path.replace(target)
