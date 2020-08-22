@@ -47,12 +47,13 @@ def reduce_linear_layer(layer, n_classes, keep_weights=False):
     assert isinstance(layer, nn.Linear)
     new_layer = nn.Linear(layer.in_features, n_classes)
     if keep_weights:
-        new_layer.weight.data = layer.weight.data[:n_classes, ...]
-        new_layer.bias.data = layer.bias.data[:n_classes]
+        if layer.out_features > n_classes:
+            new_layer.weight.data = layer.weight.data[:n_classes, ...]
+            new_layer.bias.data = layer.bias.data[:n_classes]
     return new_layer
 
 
-def replace_head(model, n_classes, keep_weights=True):
+def replace_head(model, n_classes, keep_weights=False):
     """Replace the classifier layer with a different one
 
     This is needed when repurposing an architecture for a different task
