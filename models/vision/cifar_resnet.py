@@ -148,13 +148,29 @@ def resnet_factory(filters, num_classes, weight_file):
     def _resnet(pretrained=False):
         model = ResNet(BasicBlock, filters, num_classes=num_classes)
         if pretrained:
-            weights = weights_path(weight_file)
-            weights = torch.load(weights)["state_dict"]
-            # TODO have a better solution for DataParallel models
-            # For models trained with nn.DataParallel
-            if list(weights.keys())[0].startswith("module."):
-                weights = {k[len("module."):]: v for k, v in weights.items()}
-            model.load_state_dict(weights)
+            # weights = weights_path(weight_file)
+            # weights = torch.load(weights)["state_dict"]
+            # # TODO have a better solution for DataParallel models
+            # # For models trained with nn.DataParallel
+            # if list(weights.keys())[0].startswith("module."):
+            #     weights = {k[len("module."):]: v for k, v in weights.items()}
+            # model.load_state_dict(weights)
+
+            state_dict = torch.hub.load_state_dict_from_url(
+                f"https://github.com/JJGO/shrinkbench-models/raw/master/cifar10/{weight_file}"
+            )["state_dict"]
+
+            for k in list(state_dict.keys()):
+                if k.startswith("module."):
+                    k2 = k[len("module.") :]
+                    state_dict[k2] = state_dict.pop(k)
+                    k = k2
+                if k.startswith("linear."):
+                    # Changed convention to simplify replace_head
+                    k2 = k.replace("linear.", "fc.")
+                    state_dict[k2] = state_dict.pop(k)
+
+            model.load_state_dict(state_dict)
         return model
 
     return _resnet

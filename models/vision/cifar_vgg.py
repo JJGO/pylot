@@ -97,8 +97,12 @@ class VGGBnDrop(nn.Module):
 def vgg_bn_drop(pretrained=False):
     model = VGGBnDrop(num_classes=10)
     if pretrained:
-        weights = weights_path("vgg_bn_drop.pt")
-        model.load_state_dict(torch.load(weights))
+        # weights = weights_path("vgg_bn_drop.pt")
+        # model.load_state_dict(torch.load(weights))
+        state_dict = torch.hub.load_state_dict_from_url(
+            "https://github.com/JJGO/shrinkbench-models/raw/master/cifar10/vgg_bn_drop.pt"
+        )
+        model.load_state_dict(state_dict)
     # else:
     # model.reset_weights()
     return model
