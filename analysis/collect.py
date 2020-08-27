@@ -65,7 +65,8 @@ class ResultsLoader:
         )
         paths = []
 
-        for i, folder in enumerate(tqdm(folders, total=total)):
+        i = 0
+        for folder in tqdm(folders, total=total):
             cfg = self.filecache.get(folder / "config.yml")
             if cfg is None:
                 continue
@@ -79,7 +80,10 @@ class ResultsLoader:
                 if c not in columns:
                     columns[c] = [None] * i
                     columns[c].append(list2tuple(cfg[c]))
+
             paths.append(folder)
+            i += 1
+
         columns["experiment.path"] = paths
         df = pd.DataFrame.from_dict(columns)
         self.filecache.dump()
