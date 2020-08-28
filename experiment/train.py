@@ -347,4 +347,5 @@ class TrainExperiment(Experiment):
     def resume(self):
         last_epoch = self._epoch
         printc(f"Resuming from start of epoch {last_epoch}", color="YELLOW")
+        printc(f"Running {str(self)}", color="YELLOW")
         self.run_epochs(start=last_epoch)
