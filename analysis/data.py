@@ -2,6 +2,7 @@ import collections
 import functools
 import inspect
 import pathlib
+import shutil
 import numpy as np
 import pandas as pd
 
@@ -62,7 +63,8 @@ def move_df(df, root):
         if not path.exists():
             continue
         target = root / path.name
-        path.replace(target)
+        # path.replace(target)
+        shutil.move(path, target)
 
 
 def broadcast_attr(df, col, to=None, concat=True, **when):
