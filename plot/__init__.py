@@ -8,7 +8,7 @@ from .turbo import Turbo
 
 from .ui import PlotUI
 
-from .factor import factor_plot, factor_plot_df
+from .factor import *
 
 # CMAP = plt.get_cmap('Set1')
 # colors = AutoMap(CMAP.colors)

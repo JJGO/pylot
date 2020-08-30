@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from pylot.analysis import filter_df
+from pylot.util import separate_kwargs
 
 viridis_high = ListedColormap(cm.get_cmap("viridis").colors[64:])
 
@@ -25,58 +26,104 @@ def infer_norm(array):
     return None
 
 
-def factor_plot(
-    data,
-    x,
-    y,
-    hue,
-    col,
-    row,
-    style,
-    xlog=False,
-    ylog=False,
-    palette=viridis_high,
-    col_wrap=None,
-    **kwargs
-):
-    data = filter_df(data, **kwargs)
-    if len(data) == 0:
-        warnings.warn("Empty dataset")
-        return
+def figure_size(row=None, data=None):
     height = 16
     if row is not None:
         height /= data[row].nunique()
     height = min(height, 8)
     width = 10
     aspect = width / height
-    fig = sns.relplot(
-        x=x,
-        y=y,
-        hue=hue,
+    return height, aspect
+
+
+def factor_plot(
+    data, x, y, hue, col, row, xlog=False, ylog=False, xlim=None, ylim=None, **kwargs
+):
+
+    sns_kwargs, kwargs = separate_kwargs(kwargs, sns.relplot)
+
+    data = filter_df(data, **kwargs)
+
+    assert len(data) > 0, "Empty dataset"
+
+    height, aspect = figure_size(row, data)
+
+    sns_defaults = dict(
         data=data,
-        kind="line",
-        legend="full",
-        palette=palette,
+        hue=hue,
         col=col,
         row=row,
-        style=style,
+        col_wrap=None,
+        kind="line",
+        err_style="band",
+        legend="full",
+        palette=viridis_high,
         hue_norm=infer_norm(data[hue].unique()),
-        markevery=1,
-        markers=True,
         height=height,
         aspect=aspect,
+        markevery=1,
+        markers=True,
         markersize=5,
-        col_wrap=col_wrap,
-        err_style="band",
     )
+    fig = sns.relplot(x=x, y=y, **{**sns_defaults, **sns_kwargs})
     if xlog:
         plt.xscale("log")
 
     if ylog:
         plt.yscale("log")
 
+    if xlim:
+        plt.xlim(xlim)
+
+    if ylim:
+        plt.ylim(ylim)
+
     return fig
 
 
-def factor_plot_df(data, palette=viridis_high, col_wrap=None):
-    return functools.partial(factor_plot, data, palette=palette, col_wrap=col_wrap)
+def cat_plot(
+    data, x, y, hue, col, row, xlog=False, ylog=False, xlim=None, ylim=None, **kwargs
+):
+
+    sns_kwargs, kwargs = separate_kwargs(kwargs, sns.catplot)
+
+    data = filter_df(data, **kwargs)
+
+    assert len(data) > 0, "Empty dataset"
+
+    height, aspect = figure_size(row, data)
+
+    sns_defaults = dict(
+        data=data,
+        hue=hue,
+        col=col,
+        row=row,
+        col_wrap=None,
+        kind="bar",
+        legend="full",
+        palette="tab20",
+        height=height,
+        aspect=aspect,
+    )
+    fig = sns.catplot(x=x, y=y, **{**sns_defaults, **sns_kwargs})
+    if xlog:
+        plt.xscale("log")
+
+    if ylog:
+        plt.yscale("log")
+
+    if xlim:
+        plt.xlim(xlim)
+
+    if ylim:
+        plt.ylim(ylim)
+
+    return fig
+
+
+def factor_plot_df(data, **kwargs):
+    return functools.partial(factor_plot, data, **kwargs)
+
+
+def cat_plot_df(data, **kwargs):
+    return functools.partial(cat_plot, data, **kwargs)
