@@ -3,7 +3,7 @@ import itertools
 import pathlib
 
 import pandas as pd
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 from ..util import FileCache
 from ..util import expand_keys, delete_with_prefix

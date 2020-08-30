@@ -1,7 +1,7 @@
 from collections import defaultdict
 import pathlib
 
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 import torch
 from torch.utils.data import DataLoader
