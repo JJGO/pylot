@@ -13,10 +13,10 @@ class VisionClassificationTrainExperiment(TrainExperiment):
         # So #-of-classes is correct
         super().build_model(model, **model_kwargs)
         clf = get_classifier_module(self.model)
-        if clf.out_features != self.train_dataset.n_classes:
-            replace_head(self.model, self.train_dataset.n_classes)
+        if clf.out_features != self.dataset.n_classes:
+            replace_head(self.model, self.dataset.n_classes)
         clf = get_classifier_module(self.model)
-        assert clf.out_features == self.train_dataset.n_classes
+        assert clf.out_features == self.dataset.n_classes
 
     def compute_metrics(self, phase, meters, loss, y, yhat):
         c1, c5 = correct(yhat, y, (1, 5))

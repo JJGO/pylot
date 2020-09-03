@@ -16,6 +16,7 @@ from torchviz import make_dot
 
 from .base import Experiment
 from .util import any_getattr
+from ..datasets import stratified_train_val_split
 from ..log import summary
 from ..loss import flatten_loss
 from ..util import printc, StatsMeter, CUDATimer, allbut
@@ -58,13 +59,16 @@ class TrainExperiment(Experiment):
         self.build_loss(**self.cfg["loss"])
         self.build_train(**self.cfg["train"])
 
-    def build_data(self, dataset, **data_kwargs):
+    def build_data(self, dataset, val_split=0.1, **data_kwargs):
 
         if hasattr(datasets, dataset):
             constructor = any_getattr(self.DATASETS, dataset)
             kwargs = allbut(data_kwargs, ["dataloader"])
-            self.train_dataset = constructor(train=True, **kwargs)
-            self.val_dataset = constructor(train=False, **kwargs)
+            self.dataset = constructor(train=True, **kwargs)
+            seed = self.get_param("experiment.seed")
+            self.train_dataset, self.val_dataset = stratified_train_val_split(
+                self.dataset, val_split, seed=seed
+            )
 
         else:
             raise ValueError(f"Dataset {dataset} is not recognized")
