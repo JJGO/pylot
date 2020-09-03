@@ -57,7 +57,7 @@ def dedup_df(df):
 
 def list2tuple(val):
     if isinstance(val, list):
-        return tuple(val)
+        return tuple(map(list2tuple, val))
     return val
 
 
@@ -196,7 +196,7 @@ class ResultsLoader:
 
         # g = "path" if shorthand else "experiment.path"
         g = df.attrs["exp_cols"]
-        agg_df = df.groupby(g, as_index=False).agg(_agg_fns)
+        agg_df = df.groupby(g, as_index=False, dropna=False).agg(_agg_fns)
         agg_df.columns = [
             col if agg == "" else f"{agg}_{col}" for col, agg in agg_df.columns.values
         ]
