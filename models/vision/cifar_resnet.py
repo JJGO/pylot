@@ -62,6 +62,14 @@ class LambdaLayer(nn.Module):
         return self.lambd(x)
 
 
+def add_early_maxpool(resnet):
+    assert isinstance(resnet, ResNet)
+    resnet.layer1 = nn.Sequential(
+        nn.MaxPool2d(kernel_size=3, stride=2, padding=1), resnet.layer1
+    )
+    return resnet
+
+
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -111,7 +119,7 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(self, block, num_blocks, num_classes=10, early_maxpool=False):
         super(ResNet, self).__init__()
         self.in_planes = 16
 
@@ -121,8 +129,11 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
         self.fc = nn.Linear(64, num_classes)
-        self.fc.is_classifier = True  # So layer is not pruned
         self.apply(_weights_init)
+
+        self.fc.is_classifier = True  # So layer is not pruned
+        default_maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.maxpool = default_maxpool if early_maxpool else nn.Identity()
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1] * (num_blocks - 1)
@@ -135,6 +146,7 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
+        out = self.maxpool(out)
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
@@ -145,8 +157,8 @@ class ResNet(nn.Module):
 
 
 def resnet_factory(filters, num_classes, weight_file):
-    def _resnet(pretrained=False):
-        model = ResNet(BasicBlock, filters, num_classes=num_classes)
+    def _resnet(pretrained=False, **kwargs):
+        model = ResNet(BasicBlock, filters, num_classes=num_classes, **kwargs)
         if pretrained:
             # weights = weights_path(weight_file)
             # weights = torch.load(weights)["state_dict"]
