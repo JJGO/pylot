@@ -94,13 +94,15 @@ def df_from_dict(d):
 def unique_per_column(df, every=False, counts=True, pretty=False):
     uniqs = {}
     for c in df.columns:
+        col = df[c].fillna("None")
 
-        x = df[c].unique()
+        x = col.unique()
         if not every and len(x) == len(df):
             continue
         if counts:
-            counts = collections.Counter(df[c].sort_values().values)
-            uniqs[c] = list(counts.items())
+            counts = collections.Counter(col.values)
+            key = lambda x: (x[0].__class__.__name__, x[0], x[1])
+            uniqs[c] = sorted(counts.items(), key=key)
         else:
             uniqs[c] = x
     if not pretty:
@@ -110,7 +112,7 @@ def unique_per_column(df, every=False, counts=True, pretty=False):
     data = []
     for c in uniqs:
         if counts:
-            data.append(["   ".join([f"{v} ({c})" for v, c in uniqs[c]])])
+            data.append(["   ".join([f"{v} #{c}" for v, c in uniqs[c]])])
         else:
             data.append([" ".join(uniqs[c])])
     return pd.DataFrame(data=data, index=index, columns=[""])
