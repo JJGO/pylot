@@ -72,7 +72,7 @@ def broadcast_attr(df, col, to=None, concat=True, **when):
     tmp = filter_df(df, **when)
     vals = tmp[col].unique()
     if to is None:
-        to = [c for c in df[col].unique() if c not in vals]
+        to = [c for c in df[~df[col].isna()][col].unique() if c not in vals]
     if not isinstance(to, (tuple, list)):
         to = [to]
     join = np.array([[old, new] for old in vals for new in to])
