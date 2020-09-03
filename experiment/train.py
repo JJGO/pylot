@@ -1,4 +1,5 @@
 from collections import defaultdict
+import json
 import pathlib
 
 from tqdm.autonotebook import tqdm
@@ -214,6 +215,12 @@ class TrainExperiment(Experiment):
 
                 print("\n\nOptim\n", file=f)
                 print(self.optim, file=f)
+
+            with open(summary_path.with_suffix(".json"), "w") as f:
+                s = summary(
+                    self.model, x.shape[1:], echo=False, device="cpu", as_stats=True
+                )
+                json.dump(s, f)
 
         # Save model topology
         topology_path = self.path / "topology"
