@@ -99,6 +99,8 @@ def replace_head(model, n_classes, keep_weights=False):
     else:
         raise NotImplementedError(f"Model {model} not supported")
 
+    return model
+
 
 def get_classifier_module(model):
     """Get classifier module for many Vision Classification networks
