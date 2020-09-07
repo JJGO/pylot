@@ -49,7 +49,9 @@ def PrintLogged(experiment):
 
 
 class ETA:
-    def __init__(self, experiment, n_steps, print_freq=1, gamma=0.9):
+    def __init__(self, experiment, n_steps=None, print_freq=1, gamma=0.9):
+        if n_steps is None:
+            n_steps = experiment.get_param("train.epochs") - 1
         self.n_steps = n_steps
         # self.counter = 0
         self.timestamps = [None for _ in range(n_steps)]
