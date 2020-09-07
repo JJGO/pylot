@@ -34,8 +34,10 @@ class PlotUI:
 
     def knob_values(self):
         kwargs = {k: w.value for k, w in self.knobs.items()}
+        key = lambda x: (x.__class__.__name__, x)
         kwargs = {
-            k: sorted(v) if isinstance(v, tuple) else v for k, v in kwargs.items()
+            k: sorted(v, key=key) if isinstance(v, tuple) else v
+            for k, v in kwargs.items()
         }
         return kwargs
 
