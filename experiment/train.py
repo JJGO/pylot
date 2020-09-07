@@ -70,6 +70,7 @@ class TrainExperiment(Experiment):
             self.train_dataset, self.val_dataset = stratified_train_val_split(
                 self.dataset, val_split, seed=seed
             )
+            self.test_dataset = constructor(train=False, **kwargs)
 
         else:
             raise ValueError(f"Dataset {dataset} is not recognized")
@@ -82,6 +83,7 @@ class TrainExperiment(Experiment):
             self.train_dataset, shuffle=True, **dataloader_kwargs
         )
         self.val_dl = DataLoader(self.val_dataset, shuffle=False, **dataloader_kwargs)
+        self.test_dl = DataLoader(self.test_dataset, shuffle=False, **dataloader_kwargs)
 
     def build_model(self, model, weights=None, **model_kwargs):
         constructor = any_getattr(self.MODELS, model)
@@ -274,13 +276,15 @@ class TrainExperiment(Experiment):
                         cb(epoch)
 
                 self.dump_logs()
+            self.test(epoch)
+            self.dump_logs()
 
         except KeyboardInterrupt:
             printc(f"\nInterrupted at epoch {epoch}. Tearing Down", color="RED")
             self.checkpoint(tag="interrupt")
         self.checkpoint(tag="last")
 
-    def run_epoch(self, train, epoch=0):
+    def run_epoch(self, train, epoch=0, test=False):
         progress = self.get_param("log.progress", False)
         timing = self.get_param("log.timing", False)
         if train:
@@ -291,6 +295,10 @@ class TrainExperiment(Experiment):
             self.model.eval()
             phase = "val"
             dl = self.val_dl
+        if test:
+            assert not train, "Cannot train and test at the same time"
+            phase = "test"
+            dl = self.test_dl
 
         meters = defaultdict(StatsMeter)
         timer = CUDATimer(unit="ms", skip=10)
@@ -348,6 +356,9 @@ class TrainExperiment(Experiment):
 
     def eval(self, epoch=0):
         return self.run_epoch(False, epoch)
+
+    def test(self, epoch=0):
+        return self.run_epoch(False, epoch, test=True)
 
     def run(self):
         self.build_logging()
