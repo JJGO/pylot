@@ -171,7 +171,7 @@ def TinyImageNet(train=True, path=None):
     mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     normalize = transforms.Normalize(mean=mean, std=std)
     if train:
-        preproc = [transforms.RandomHorizontalFlip()]
+        preproc = [transforms.RandomCrop(64, 8), transforms.RandomHorizontalFlip()]
     else:
         preproc = []
     dataset = dataset_builder("TinyImageNet", train, normalize, preproc, path)
@@ -189,7 +189,7 @@ def Miniplaces(train=True, path=None):
     mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     normalize = transforms.Normalize(mean=mean, std=std)
     if train:
-        preproc = [transforms.RandomHorizontalFlip()]
+        preproc = [transforms.RandomCrop(128, 16), transforms.RandomHorizontalFlip()]
     else:
         preproc = []
     dataset = dataset_builder("Miniplaces", train, normalize, preproc, path)
