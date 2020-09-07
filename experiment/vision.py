@@ -1,3 +1,5 @@
+import copy
+
 from pylot.models.vision import replace_head, get_classifier_module
 
 from .train import TrainExperiment
@@ -23,3 +25,9 @@ class VisionClassificationTrainExperiment(TrainExperiment):
         batch_size = getattr(self, f"{phase}_dl").batch_size
         meters[f"{phase}_acc1"].add(c1 / batch_size)
         meters[f"{phase}_acc5"].add(c5 / batch_size)
+
+    def build_data(self, **kwargs):
+        # Ensure validation set is not augmented
+        super().build_data(**kwargs)
+        self.val_dataset = copy.deepcopy(self.val_dataset)
+        self.val_dataset.transform = self.test_dataset.transform
