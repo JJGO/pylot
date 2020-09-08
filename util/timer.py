@@ -1,5 +1,6 @@
 from collections import defaultdict
 from contextlib import contextmanager
+import functools
 import time
 
 import torch
@@ -18,7 +19,7 @@ class Timer:
         self.enabled = True
 
     def reset(self):
-        self._measurements = {}
+        self._measurements.clear()
 
     def enable(self):
         self.enabled = True
@@ -48,17 +49,29 @@ class Timer:
     def measurements(self):
         return dict(self._measurements)
 
+    def wrap(self, func, label=None):
+        if label is None:
+            label = func.__name__
+
+        @functools.wraps(func)
+        def timed_func(*args, **kwargs):
+            with self(label):
+                return func(*args, **kwargs)
+
+        return timed_func
+
 
 class StatsTimer(Timer):
     def __init__(self, verbose=False, unit="s", skip=0, n_samples=None):
-        super().__init__(verbose=verbose, unit=unit)
         self._skip = defaultdict(lambda: skip)
+        super().__init__(verbose=verbose, unit=unit)
         if n_samples is None:
             n_samples = float("inf")
         self.n_samples = n_samples
 
     def reset(self):
         self._measurements = defaultdict(StatsMeter)
+        self._skip.clear()
 
     def _save(self, label, elapsed):
         if self._skip[label] > 0:
@@ -100,6 +113,7 @@ class CUDATimer(StatsTimer):
             yield
             end.record()
             # Waits for everything to finish running
+            # Sync after record is right despite being counterintuitive
             torch.cuda.synchronize()
             self._save(label, start.elapsed_time(end))
         else:
