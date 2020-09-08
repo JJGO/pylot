@@ -1,0 +1,6 @@
+[submodule "models/vision/efficientnet/EfficientNet-PyTorch"]
+	path = models/vision/efficientnet/EfficientNet-PyTorch
+	url = git@github.com:lukemelas/EfficientNet-PyTorch.git
+[submodule "models/vision/efficientnet/efficientnet_pytorch"]
+	path = models/vision/efficientnet/efficientnet_pytorch
+	url = git@github.com:lukemelas/EfficientNet-PyTorch.git

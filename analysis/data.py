@@ -79,7 +79,7 @@ def broadcast_attr(df, col, to=None, concat=True, **when):
     join = pd.DataFrame(data=join, columns=[f"{col}_old", col])
     tmp = tmp.rename(columns={col: f"{col}_old"})
     tmp = pd.merge(tmp, join, on=f"{col}_old")
-    tmp.drop(columns=[f"{col}_old"])
+    tmp.drop(columns=[f"{col}_old"], inplace=True)
     if concat:
         merged = pd.concat([df, tmp])
         merged.attrs = df.attrs
