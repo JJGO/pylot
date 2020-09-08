@@ -88,7 +88,7 @@ class Experiment:
         return hashlib.md5(yaml.dump(cfg, sort_keys=True).encode("utf-8")).hexdigest()
 
     def __hash__(self):
-        return hash(self.digest)
+        return int(self.digest, 16)
 
     def generate_uid(self):
         """Returns a time sortable UID
