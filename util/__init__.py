@@ -14,3 +14,4 @@ from .meta import separate_kwargs, partial, delegates, GetAttr
 from .meter import StatsMeter, MaxMinMeter, MeterCSVLogger, Meter, UnionMeter
 from .print import printy
 from .timer import Timer, StatsTimer, CUDATimer
+from .env import get_full_env_info
