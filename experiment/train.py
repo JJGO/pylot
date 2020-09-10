@@ -74,6 +74,7 @@ class TrainExperiment(Experiment):
                     self.dataset, val_split, seed=seed
                 )
             else:
+                self.train_dataset = self.dataset
                 self.val_dataset = self.test_dataset
 
         else:
