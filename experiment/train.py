@@ -3,6 +3,7 @@ import json
 import pathlib
 
 from tqdm.autonotebook import tqdm
+import yaml
 
 import torch
 from torch.utils.data import DataLoader
@@ -20,7 +21,7 @@ from .util import any_getattr
 from ..datasets import stratified_train_val_split
 from ..log import summary
 from ..loss import flatten_loss
-from ..util import printc, StatsMeter, CUDATimer, allbut
+from ..util import printc, StatsMeter, CUDATimer, allbut, get_full_env_info
 from ..scheduler import WarmupScheduler
 from .. import callbacks
 from .. import datasets
@@ -60,17 +61,20 @@ class TrainExperiment(Experiment):
         self.build_loss(**self.cfg["loss"])
         self.build_train(**self.cfg["train"])
 
-    def build_data(self, dataset, val_split=0.1, **data_kwargs):
+    def build_data(self, dataset, val_split=None, **data_kwargs):
 
         if hasattr(datasets, dataset):
             constructor = any_getattr(self.DATASETS, dataset)
             kwargs = allbut(data_kwargs, ["dataloader"])
             self.dataset = constructor(train=True, **kwargs)
             seed = self.get_param("experiment.seed")
-            self.train_dataset, self.val_dataset = stratified_train_val_split(
-                self.dataset, val_split, seed=seed
-            )
             self.test_dataset = constructor(train=False, **kwargs)
+            if val_split is not None:
+                self.train_dataset, self.val_dataset = stratified_train_val_split(
+                    self.dataset, val_split, seed=seed
+                )
+            else:
+                self.val_dataset = self.test_dataset
 
         else:
             raise ValueError(f"Dataset {dataset} is not recognized")
@@ -208,6 +212,10 @@ class TrainExperiment(Experiment):
         x, y = next(iter(self.train_dl))
         # x, y = x.to(self.device), y.to(self.device)
 
+        envinfo_path = self.path / "env.yml"
+        with open(envinfo_path, "a+") as f:
+            yaml.dump([get_full_env_info()], f)
+
         # Save model summary
         summary_path = self.path / "summary.txt"
         if self.get_param("log.summary", True) and not summary_path.exists():
@@ -217,6 +225,10 @@ class TrainExperiment(Experiment):
 
                 print("\n\nOptim\n", file=f)
                 print(self.optim, file=f)
+
+                if self.scheduler is not None:
+                    print("\n\nScheduler\n", file=f)
+                    print(self.scheduler, file=f)
 
             with open(summary_path.with_suffix(".json"), "w") as f:
                 s = summary(
