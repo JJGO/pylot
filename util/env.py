@@ -1,7 +1,10 @@
+from collections import Counter
 from datetime import datetime
 import os
 import platform
+import psutil
 import time
+import subprocess
 import sys
 from torch.utils.collect_env import get_env_info
 
@@ -114,6 +117,17 @@ def info_system():
     }
 
 
+def get_hardware_info():
+    hw = {}
+    # Get CPU info
+    with open("/proc/cpuinfo", "r") as f:
+        cpus = [l.split(":")[1].strip() for l in f.readlines() if "model name" in l]
+        hw["cpus"] = dict(Counter(cpus))
+
+    hw["ram"] = str(round(psutil.virtual_memory().total / (1024.0 ** 3))) + " GB"
+    return hw
+
+
 def get_full_env_info():
 
     system_env = info_system()
@@ -121,13 +135,15 @@ def get_full_env_info():
     # PyTorch env
     env_namedtuple = get_env_info()
     pytorch_env = dict(env_namedtuple._asdict())
-    pytorch_env["pip_packages"] = {
-        k: v
-        for k, v in [
-            line.split("==") for line in pytorch_env["pip_packages"].split("\n")
-        ]
-    }
-    pytorch_env["conda_packages"] = {
+    if pytorch_env["pip_packages"] is not None:
+        pytorch_env["pip_packages"] = {
+            k: v
+            for k, v in [
+                line.split("==") for line in pytorch_env["pip_packages"].split("\n")
+            ]
+        }
+    if pytorch_env["conda_packages"]:
+        pytorch_env["conda_packages"] = {
         k: v
         for k, v, *_ in [
             line.split() for line in pytorch_env["conda_packages"].split("\n")
@@ -144,6 +160,7 @@ def get_full_env_info():
     for k in _EXCLUDES:
         environ.pop(k, None)
 
+    hw = get_hardware_info()
     when = dict(timestamp=time.time(), date=datetime.astimezone(datetime.now()),)
 
-    return dict(sys=system_env, python=pytorch_env, os=environ, when=when)
+    return dict(sys=system_env, python=pytorch_env, os=environ, hardware=hw, when=when)
