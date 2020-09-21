@@ -37,10 +37,24 @@ def figure_size(row=None, data=None):
 
 
 def factor_plot(
-    data, x, y, hue, col, row, xlog=False, ylog=False, xlim=None, ylim=None, **kwargs
+    data,
+    x,
+    y,
+    hue,
+    col,
+    row,
+    xlog=False,
+    ylog=False,
+    xlim=None,
+    ylim=None,
+    sns_kwargs=None,
+    **kwargs,
 ):
+    if sns_kwargs is None:
+        sns_kwargs = {}
 
-    sns_kwargs, kwargs = separate_kwargs(kwargs, sns.relplot)
+    _sns_kwargs, kwargs = separate_kwargs(kwargs, sns.relplot)
+    sns_kwargs.update(**_sns_kwargs)
 
     data = filter_df(data, **kwargs)
 
@@ -55,16 +69,15 @@ def factor_plot(
         row=row,
         col_wrap=None,
         kind="line",
-        err_style="band",
         legend="full",
         palette=viridis_high,
         hue_norm=infer_norm(data[hue].unique()),
         height=height,
         aspect=aspect,
-        markevery=1,
         markers=True,
-        markersize=5,
+        # markersize=5,
     )
+    # err_style="band",
     fig = sns.relplot(x=x, y=y, **{**sns_defaults, **sns_kwargs})
     if xlog:
         plt.xscale("log")
@@ -82,10 +95,25 @@ def factor_plot(
 
 
 def cat_plot(
-    data, x, y, hue, col, row, xlog=False, ylog=False, xlim=None, ylim=None, **kwargs
+    data,
+    x,
+    y,
+    hue,
+    col,
+    row,
+    xlog=False,
+    ylog=False,
+    xlim=None,
+    ylim=None,
+    sns_kwargs=None,
+    **kwargs,
 ):
 
-    sns_kwargs, kwargs = separate_kwargs(kwargs, sns.catplot)
+    if sns_kwargs is None:
+        sns_kwargs = {}
+
+    _sns_kwargs, kwargs = separate_kwargs(kwargs, sns.catplot)
+    sns_kwargs.update(**_sns_kwargs)
 
     data = filter_df(data, **kwargs)
 
