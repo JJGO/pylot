@@ -26,6 +26,7 @@ from ..scheduler import WarmupScheduler
 from .. import callbacks
 from .. import datasets
 from .. import models
+from .. import optim
 from .. import loss as custom_loss
 
 
@@ -35,7 +36,7 @@ class TrainExperiment(Experiment):
     DATASETS = [torchvision.datasets, datasets]
     CALLBACKS = [callbacks]
     LOSS = [torch.nn, custom_loss]
-    OPTIMS = [torch.optim]
+    OPTIMS = [torch.optim, optim]
     SCHEDULERS = [lr_scheduler]
 
     def __init__(self, cfg=None, **kwargs):
