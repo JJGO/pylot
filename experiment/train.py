@@ -315,6 +315,7 @@ class TrainExperiment(Experiment):
 
         meters = defaultdict(StatsMeter)
         timer = CUDATimer(unit="ms", skip=10)
+        epoch_timer = CUDATimer(unit="ms")
         if not timing:
             timer.disable()
 
@@ -326,7 +327,7 @@ class TrainExperiment(Experiment):
             )
             epoch_iter = iter(epoch_progress)
 
-        with torch.set_grad_enabled(train):
+        with torch.set_grad_enabled(train), epoch_timer("t_epoch"):
             for i in range(len(dl)):
                 with timer("t_data"):
                     x, y = next(epoch_iter)
@@ -358,6 +359,7 @@ class TrainExperiment(Experiment):
             self.log(lr=self.optim.param_groups[0]["lr"])
             if timing:
                 self.log(timer.measurements)
+                self.log(epoch_timer.measurements)
 
         self.log(meters)
 
