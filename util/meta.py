@@ -3,6 +3,16 @@ import re
 import functools
 
 
+# Decorator to monkey patch static
+# kwarg vars to a function
+def static_vars(**kwargs):
+    def decorate(func):
+        for k in kwargs:
+            setattr(func, k, kwargs[k])
+        return func
+    return decorate
+
+
 def separate_kwargs(kwargs, func):
 
     func_params = inspect.signature(func).parameters
