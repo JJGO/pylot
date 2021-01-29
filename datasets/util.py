@@ -21,3 +21,4 @@ def stratified_train_val_split(dataset, val_split, seed=None):
         indices, test_size=val_split, random_state=seed, stratify=dataset.targets
     )
     return Subset(dataset, train_indices), Subset(dataset, val_indices)
+

@@ -196,3 +196,9 @@ def Miniplaces(train=True, path=None):
     dataset.shape = (3, 128, 128)
     dataset.n_classes = 100
     return dataset
+
+
+def nanoImageNet(train=True, path=None):
+    from .subset import subset_dataset
+    d = ImageNet(train=train, path=path)
+    return subset_dataset(d, 10, 1000)
