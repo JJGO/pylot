@@ -28,6 +28,7 @@ from .. import datasets
 from .. import models
 from .. import optim
 from .. import loss as custom_loss
+from .. import scheduler as custom_scheduler
 
 
 class TrainExperiment(Experiment):
@@ -37,7 +38,7 @@ class TrainExperiment(Experiment):
     CALLBACKS = [callbacks]
     LOSS = [torch.nn, custom_loss]
     OPTIMS = [torch.optim, optim]
-    SCHEDULERS = [lr_scheduler]
+    SCHEDULERS = [lr_scheduler, custom_scheduler]
 
     def __init__(self, cfg=None, **kwargs):
 
