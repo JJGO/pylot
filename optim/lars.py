@@ -1,8 +1,15 @@
-# From https://github.com/kakaobrain/torchlars/blob/master/torchlars/lars.py
+"""
+References:
+    - https://github.com/PyTorchLightning/PyTorch-Lightning-Bolts/blob/master/pl_bolts/optimizers/lars_scheduling.py
+    - https://github.com/NVIDIA/apex/blob/master/apex/parallel/LARC.py
+    - https://arxiv.org/pdf/1708.03888.pdf
+    - https://github.com/noahgolmant/pytorch-lars/blob/master/lars.py
+"""
+
 from contextlib import contextmanager
 
 import torch
-from torch.optim.optimizer import Optimizer
+from .wrapper import OptimWrapper
 
 # from torchlars._adaptive_lr import compute_adaptive_lr # Impossible to build extensions
 
@@ -10,7 +17,7 @@ from torch.optim.optimizer import Optimizer
 __all__ = ["LARS"]
 
 
-class LARS(Optimizer):
+class LARS(OptimWrapper):
     """Implements 'LARS (Layer-wise Adaptive Rate Scaling)'__ as Optimizer a
     :class:`~torch.optim.Optimizer` wrapper.
 
@@ -41,7 +48,7 @@ class LARS(Optimizer):
 
     """
 
-    def __init__(self, optimizer, eps=1e-8, trust_coef=0.001):
+    def __init__(self, optimizer, trust_coef=0.02, clip=True, eps=1e-8):
         if eps < 0.0:
             raise ValueError("invalid epsilon value: , %f" % eps)
         if trust_coef < 0.0:
@@ -50,89 +57,62 @@ class LARS(Optimizer):
         self.optim = optimizer
         self.eps = eps
         self.trust_coef = trust_coef
-        self.adaptive_lr = torch.ones([])
+        self.clip = clip
 
     def __getstate__(self):
+        self.optim.__get
         lars_dict = {}
-        lars_dict["eps"] = self.eps
         lars_dict["trust_coef"] = self.trust_coef
-        lars_dict["adaptive_lr"] = self.adaptive_lr
+        lars_dict["clip"] = self.clip
+        lars_dict["eps"] = self.eps
         return (self.optim, lars_dict)
 
     def __setstate__(self, state):
         self.optim, lars_dict = state
-
-        self.eps = lars_dict["eps"]
         self.trust_coef = lars_dict["trust_coef"]
-        self.adaptive_lr = lars_dict["adaptive_lr"]
+        self.clip = lars_dict["clip"]
+        self.eps = lars_dict["eps"]
 
-    def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, self.optim)
-
-    @property
-    def param_groups(self):
-        return self.optim.param_groups
-
-    @property
-    def defaults(self):
-        return self.optim.defaults
-
-    def state_dict(self):
-        return self.optim.state_dict()
-
-    def load_state_dict(self, state_dict):
-        self.optim.load_state_dict(state_dict)
-
-    def zero_grad(self):
-        self.optim.zero_grad()
-
-    def add_param_group(self, param_group):
-        self.optim.add_param_group(param_group)
-
-    @contextmanager
-    def hide_weight_decays(self):
+    @torch.no_grad()
+    def step(self, closure=None):
         weight_decays = []
 
         for group in self.optim.param_groups:
-            if "weight_decay" in group:
-                weight_decays.append(group["weight_decay"])
-                group["weight_decay"] = 0
-            else:
-                weight_decays.append(None)
+            weight_decay = group.get("weight_decay", 0)
+            weight_decays.append(weight_decay)
 
-        try:
-            yield weight_decays
-        finally:
-            for group, weight_decay in zip(self.optim.param_groups, weight_decays):
-                if weight_decay is None:
-                    continue
-                group["weight_decay"] = weight_decay
+            # reset weight decay
+            group["weight_decay"] = 0
 
-    def apply_adaptive_lrs(self, weight_decays):
-        with torch.no_grad():
-            for group, weight_decay in zip(self.optim.param_groups, weight_decays):
-                if weight_decay is None:
-                    weight_decay = 0.0
-                for p in group["params"]:
-                    if p.grad is None:
-                        continue
+            # update the parameters
+            for p in group["params"]:
+                if p.grad is not None:
+                    self.update_p(p, group, weight_decay)
 
-                    param_norm = p.norm()
-                    grad_norm = p.grad.norm()
+        # update the optimizer
+        self.optim.step(closure=closure)
 
-                    if param_norm > 0 and grad_norm > 0:
-                        divisor = grad_norm + weight_decay * param_norm + self.eps
-                        adaptive_lr = param_norm / divisor * self.trust_coef
-                    else:
-                        adaptive_lr = 1.0
+        # return weight decay control to optimizer
+        for group_idx, group in enumerate(self.optim.param_groups):
+            group["weight_decay"] = weight_decays[group_idx]
 
-                    p.grad.add_(p.data, alpha=weight_decay)
-                    p.grad.mul_(adaptive_lr)
+    def update_p(self, p, group, weight_decay):
+        # calculate new norms
+        p_norm = torch.norm(p.data)
+        g_norm = torch.norm(p.grad.data)
 
-    def step(self, *args, **kwargs):
-        with self.hide_weight_decays() as weight_decays:
-            self.apply_adaptive_lrs(weight_decays)
-            return self.optim.step(*args, **kwargs)
+        if p_norm != 0 and g_norm != 0:
+            # calculate new lr
+            divisor = g_norm + p_norm * weight_decay + self.eps
+            adaptive_lr = (self.trust_coef * p_norm) / divisor
+
+            # clip lr
+            if self.clip:
+                adaptive_lr = min(adaptive_lr / group["lr"], 1)
+
+            # update params with clipped lr
+            p.grad.data += weight_decay * p.data
+            p.grad.data *= adaptive_lr
 
 
 from torch.optim import SGD
