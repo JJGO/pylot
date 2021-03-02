@@ -65,22 +65,18 @@ class TrainExperiment(Experiment):
 
     def build_data(self, dataset, val_split=None, **data_kwargs):
 
-        if hasattr(datasets, dataset):
-            constructor = any_getattr(self.DATASETS, dataset)
-            kwargs = allbut(data_kwargs, ["dataloader"])
-            self.dataset = constructor(train=True, **kwargs)
-            seed = self.get_param("experiment.seed")
-            self.test_dataset = constructor(train=False, **kwargs)
-            if val_split is not None:
-                self.train_dataset, self.val_dataset = stratified_train_val_split(
-                    self.dataset, val_split, seed=seed
-                )
-            else:
-                self.train_dataset = self.dataset
-                self.val_dataset = self.test_dataset
-
+        constructor = any_getattr(self.DATASETS, dataset)
+        kwargs = allbut(data_kwargs, ["dataloader"])
+        self.dataset = constructor(train=True, **kwargs)
+        seed = self.get_param("experiment.seed")
+        self.test_dataset = constructor(train=False, **kwargs)
+        if val_split is not None:
+            self.train_dataset, self.val_dataset = stratified_train_val_split(
+                self.dataset, val_split, seed=seed
+            )
         else:
-            raise ValueError(f"Dataset {dataset} is not recognized")
+            self.train_dataset = self.dataset
+            self.val_dataset = self.test_dataset
 
         self.build_dataloader(**data_kwargs["dataloader"])
 
