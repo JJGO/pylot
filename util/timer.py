@@ -4,6 +4,7 @@ import functools
 import time
 
 import torch
+import torch.cuda
 
 from .meter import StatsMeter
 
@@ -13,6 +14,7 @@ UNIT_FACTORS = {"s": 1, "ms": 1e3, "us": 1e6, "ns": 1e9, "m": 1 / 60, "h": 1 / 3
 class Timer:
     def __init__(self, verbose=False, unit="s"):
         self.verbose = verbose
+        self._measurements = {}
         self.reset()
         self.unit = unit
         self._factor = UNIT_FACTORS[unit]
