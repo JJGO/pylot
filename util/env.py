@@ -144,14 +144,17 @@ def get_full_env_info():
         }
     if pytorch_env["conda_packages"]:
         pytorch_env["conda_packages"] = {
-        k: v
-        for k, v, *_ in [
-            line.split() for line in pytorch_env["conda_packages"].split("\n")
+            k: v
+            for k, v, *_ in [
+                line.split() for line in pytorch_env["conda_packages"].split("\n")
+            ]
+        }
+
+    if pytorch_env["nvidia_gpu_models"] is not None:
+        pytorch_env["nvidia_gpu_models"] = [
+            line for line in pytorch_env["nvidia_gpu_models"].split("\n")
         ]
-    }
-    pytorch_env["nvidia_gpu_models"] = [
-        line for line in pytorch_env["nvidia_gpu_models"].split("\n")
-    ]
+
     pytorch_env["executable"] = sys.executable
 
     # Env
@@ -160,7 +163,10 @@ def get_full_env_info():
     for k in _EXCLUDES:
         environ.pop(k, None)
 
-    hw = get_hardware_info()
-    when = dict(timestamp=time.time(), date=datetime.astimezone(datetime.now()),)
+    # hw = get_hardware_info()
+    when = dict(
+        timestamp=time.time(),
+        date=datetime.astimezone(datetime.now()),
+    )
 
-    return dict(sys=system_env, python=pytorch_env, os=environ, hardware=hw, when=when)
+    return dict(sys=system_env, python=pytorch_env, os=environ, when=when)

@@ -21,7 +21,7 @@ from .util import any_getattr
 from ..datasets import stratified_train_val_split
 from ..log import summary
 from ..loss import flatten_loss
-from ..util import printc, StatsMeter, CUDATimer, allbut, get_full_env_info
+from ..util import printc, StatsMeter, StatsTimer, CUDATimer, allbut, get_full_env_info
 from ..scheduler import WarmupScheduler
 from .. import callbacks
 from .. import datasets
@@ -65,22 +65,18 @@ class TrainExperiment(Experiment):
 
     def build_data(self, dataset, val_split=None, **data_kwargs):
 
-        if hasattr(datasets, dataset):
-            constructor = any_getattr(self.DATASETS, dataset)
-            kwargs = allbut(data_kwargs, ["dataloader"])
-            self.dataset = constructor(train=True, **kwargs)
-            seed = self.get_param("experiment.seed")
-            self.test_dataset = constructor(train=False, **kwargs)
-            if val_split is not None:
-                self.train_dataset, self.val_dataset = stratified_train_val_split(
-                    self.dataset, val_split, seed=seed
-                )
-            else:
-                self.train_dataset = self.dataset
-                self.val_dataset = self.test_dataset
-
+        constructor = any_getattr(self.DATASETS, dataset)
+        kwargs = allbut(data_kwargs, ["dataloader"])
+        self.dataset = constructor(train=True, **kwargs)
+        seed = self.get_param("experiment.seed")
+        self.test_dataset = constructor(train=False, **kwargs)
+        if val_split is not None:
+            self.train_dataset, self.val_dataset = stratified_train_val_split(
+                self.dataset, val_split, seed=seed
+            )
         else:
-            raise ValueError(f"Dataset {dataset} is not recognized")
+            self.train_dataset = self.dataset
+            self.val_dataset = self.test_dataset
 
         self.build_dataloader(**data_kwargs["dataloader"])
 
@@ -316,8 +312,9 @@ class TrainExperiment(Experiment):
             dl = self.test_dl
 
         meters = defaultdict(StatsMeter)
-        timer = CUDATimer(unit="ms", skip=10)
-        epoch_timer = CUDATimer(unit="ms")
+        timercls = CUDATimer if torch.cuda.is_available() else StatsTimer
+        timer = timercls(unit="ms", skip=10)
+        epoch_timer = timercls(unit="ms")
         if not timing:
             timer.disable()
 
