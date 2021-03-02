@@ -19,10 +19,10 @@ def torch_renorm(im, min=0, max=255):
     return min + (im - im.min()) / (im.max() - im.min()) * (max - min)
 
 
-def toImg(im):
+def toImg(im, norm=False):
     im = im.detach().cpu().numpy().transpose((1, 2, 0))
     if im.shape[-1] == 1:
         im = im[..., 0]
-    #     x = renorm(im)
-    x = im
-    return Image.fromarray(x.astype(np.uint8))
+    if norm:
+        im = renorm(im)
+    return Image.fromarray(im.astype(np.uint8))
