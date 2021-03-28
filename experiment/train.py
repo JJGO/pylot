@@ -252,6 +252,7 @@ class TrainExperiment(Experiment):
         self.checkpoint(tag="last")
 
     def run_epoch(self, train, epoch=0, test=False):
+        self.before_epoch(train, epoch, test)
         progress = self.get_param("log.progress", False)
         timing = self.get_param("log.timing", False)
         if train:
@@ -284,6 +285,7 @@ class TrainExperiment(Experiment):
 
         with torch.set_grad_enabled(train), epoch_timer("t_epoch"):
             for i in range(len(dl)):
+                self.before_batch(phase, epoch, i)
                 with timer("t_data"):
                     x, y = next(epoch_iter)
                     x, y = x.to(self.device), y.to(self.device)
@@ -310,6 +312,8 @@ class TrainExperiment(Experiment):
                 if progress:
                     epoch_progress.set_postfix(postfix)
 
+                self.after_batch(phase, epoch, i)
+
         if train:
             self.log(lr=self.optim.param_groups[0]["lr"])
             if timing:
@@ -317,6 +321,19 @@ class TrainExperiment(Experiment):
                 self.log(epoch_timer.measurements)
 
         self.log(meters)
+        self.after_epoch(train, epoch, test)
+
+    def before_batch(self, phase, epoch, iteration):
+        pass
+
+    def after_batch(self, phase, epoch, iteration):
+        pass
+
+    def before_epoch(self, train, epoch, test):
+        pass
+
+    def after_epoch(self, train, epoch, test):
+        pass
 
     def compute_metrics(self, phase, meters, loss, y, yhat):
         pass
