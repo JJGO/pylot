@@ -2,7 +2,7 @@ from collections import defaultdict
 import json
 import pathlib
 
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 import yaml
 
 import torch
@@ -14,14 +14,13 @@ from torch.optim import lr_scheduler
 import torchvision.datasets
 import torchvision.models
 
-from torchviz import make_dot
 
 from .base import Experiment
 from .util import any_getattr
 from ..datasets import stratified_train_val_split
 from ..log import summary
 from ..loss import flatten_loss
-from ..util import printc, StatsMeter, StatsTimer, CUDATimer, allbut, get_full_env_info
+from ..util import printc, StatsMeter, StatsTimer, CUDATimer, allbut
 from ..scheduler import WarmupScheduler
 from .. import callbacks
 from .. import datasets
@@ -207,67 +206,22 @@ class TrainExperiment(Experiment):
     def build_logging(self):
         super().build_logging()
 
-        # Sample a batch
-        x, y = next(iter(self.train_dl))
-        # x, y = x.to(self.device), y.to(self.device)
-
-        envinfo_path = self.path / "env.yml"
-        with open(envinfo_path, "a+") as f:
-            yaml.dump([get_full_env_info()], f)
-
-        # Save model summary
-        summary_path = self.path / "summary.txt"
-        if self.get_param("log.summary", True) and not summary_path.exists():
-            with open(summary_path, "w") as f:
-                s = summary(self.model, x.shape[1:], echo=False, device="cpu")
-                print(s, file=f)
-
-                print("\n\nOptim\n", file=f)
-                print(self.optim, file=f)
-
-                if self.scheduler is not None:
-                    print("\n\nScheduler\n", file=f)
-                    print(self.scheduler, file=f)
-
-            with open(summary_path.with_suffix(".json"), "w") as f:
-                s = summary(
-                    self.model, x.shape[1:], echo=False, device="cpu", as_stats=True
-                )
-                json.dump(s, f)
-
-        # Save model topology
-        topology_path = self.path / "topology"
-        topology_pdf_path = topology_path.with_suffix(".pdf")
-        if self.get_param("log.topology", False) and not topology_pdf_path.exists():
-            yhat = self.model(x)
-            loss = self.loss_func(yhat, y)
-            g = make_dot(loss)
-            # g.format = 'svg'
-            g.render(topology_path)
-            # Interested in pdf, the graphviz file can be removed
-            topology_path.unlink()
-
-        del x
-        del y
-
         # Callbacks
-        self.batch_callbacks = []
-        self.epoch_callbacks = []
         if "log" in self.cfg:
-            if "batch_callbacks" in self.cfg["log"]:
-                cbs = self.cfg["log"]["batch_callbacks"]
-                self.batch_callbacks = [
-                    any_getattr(self.CALLBACKS, k)(self, **args)
-                    for c in cbs
-                    for k, args in c.items()
-                ]
-            if "epoch_callbacks" in self.cfg["log"]:
-                cbs = self.cfg["log"]["epoch_callbacks"]
-                self.epoch_callbacks = [
-                    any_getattr(self.CALLBACKS, k)(self, **args)
-                    for c in cbs
-                    for k, args in c.items()
-                ]
+
+            for category in ["setup", "batch", "epoch"]:
+                category = f"{category}_callbacks"
+                callbacks = []
+                if category in self.cfg["log"]:
+
+                    for cb in self.cfg["log"][category]:
+                        if isinstance(cb, str):
+                            k, args = cb, {}
+                        else:
+                            k, args = next(iter(cb.items()))
+                        callbacks.append(any_getattr(self.CALLBACKS, k)(self, **args))
+
+                setattr(self, category, callbacks)
 
     def run_epochs(self, start=0, end=None):
         end = self.epochs if end is None else end
