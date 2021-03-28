@@ -4,4 +4,6 @@
 
 from .checkpoint import Checkpoint
 from .log import LogParameters, TqdmParameters, PrintLogged, ETA
-from .debug import nvidia_smi
+from .setup import Summary, Topology, ParameterTable, ModuleTable
+from .debug import nvidia_smi, CUDAMemory
+from .img import ImgIO, ImgActivations 

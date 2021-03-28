@@ -1,0 +1,53 @@
+
+{% extends 'base.html' %}
+{% block content %}
+
+{% for epoch in activations %}
+
+    <h3> Epoch {{ epoch }} </h3>
+
+    <table>
+
+    <tr>
+    <th> Layer </th>
+    {% for i in range(samples) %}
+        <th> X[{{i}}] </th>
+    {% endfor %}
+    </tr>
+
+    <tr>
+    <td> Input </td>
+    {% for i in range(samples) %}
+        <td> {{ imgX[i] }} </td>
+    {% endfor %}
+    </tr>
+
+    {% for name in activations[epoch][0] %}
+        <tr>
+        <td> {{name}} </td>
+        {% for i in range(samples) %}
+            <td>
+            {% for img in activations[epoch][i][name] %}
+            {{ img }}
+            {% endfor %}
+            </td>
+        {% endfor %}
+        </tr>
+    {% endfor %}
+
+    <tr>
+    <td> Target </td>
+    {% for i in range(samples) %}
+        <td>
+        {% for c in range(channels_out) %}
+        {{ imgY[i][c] }}
+        {% endfor %}
+        </td>
+    {% endfor %}
+    </tr>
+
+    </table>
+
+{% endfor %}
+
+{% endblock %}

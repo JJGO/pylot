@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<table>
+<tr>
+<th> Epoch </th>
+{% for i in range(samples) %}
+    {% for c in range(channels_out) %}
+    <th> X[{{i}}][[{{c}}] </th>
+    {% endfor %}
+    <th></th>
+{% endfor %}
+</tr>
+
+
+<tr>
+<td> Input </td>
+{% for i in range(samples) %}
+    {% for c in range(channels_out) %}
+      <td>
+      {% if c == 0 %}
+        {{ imgX[i] }}
+      {% endif %}
+      </td>
+    {% endfor %}
+    <td></td>
+{% endfor %}
+</tr>
+
+<tr>
+<td> Target </td>
+{% for i in range(samples) %}
+    {% for c in range(channels_out) %}
+    <td> {{ imgY[i][c] }} </td>
+    {% endfor %}
+    <td></td>
+{% endfor %}
+</tr>
+
+{% for e in imgYh %}
+    <tr>
+    <td> {{e}} </td>
+    {% for i in range(samples) %}
+        {% for c in range(channels_out) %}
+        <td> {{ imgYh[e][i][c] }} </td>
+        {% endfor %}
+        <td></td>
+    {% endfor %}
+    </tr>
+{% endfor %}
+
+{% endblock %}
