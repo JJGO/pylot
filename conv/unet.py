@@ -3,7 +3,7 @@ from torch import nn
 
 from .block import ConvBlock
 
-class Unet(nn.Module):
+class UNet(nn.Module):
 
 
     def __init__(self,
@@ -13,7 +13,7 @@ class Unet(nn.Module):
                  out_activation='Sigmoid',
                  convs_per_block=2):
 
-        super(Unet, self).__init__()
+        super().__init__()
 
         up_filters = filters[-2::-1]
         self.downsample = nn.MaxPool2d(2)
