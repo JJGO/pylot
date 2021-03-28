@@ -81,11 +81,10 @@ def dataset_builder(dataset, train=True, normalize=None, preproc=None, path=None
     return _constructors[dataset](path, train=train, **kwargs)
 
 
-def MNIST(train=True, path=None):
-    """Thin wrapper around torchvision.datasets.CIFAR10
-    """
+def MNIST(train=True, path=None, norm=False):
+    """Thin wrapper around torchvision.datasets.CIFAR10"""
     mean, std = 0.1307, 0.3081
-    normalize = transforms.Normalize(mean=(mean,), std=(std,))
+    normalize = transforms.Normalize(mean=(mean,), std=(std,)) if norm else None
     dataset = dataset_builder("MNIST", train, normalize, [], path)
     dataset.shape = (1, 28, 28)
     dataset.n_classes = 10
@@ -93,8 +92,7 @@ def MNIST(train=True, path=None):
 
 
 def CIFAR10(train=True, path=None):
-    """Thin wrapper around torchvision.datasets.CIFAR10
-    """
+    """Thin wrapper around torchvision.datasets.CIFAR10"""
     mean, std = [0.491, 0.482, 0.447], [0.247, 0.243, 0.262]
     normalize = transforms.Normalize(mean=mean, std=std)
     if train:
@@ -108,8 +106,7 @@ def CIFAR10(train=True, path=None):
 
 
 def CIFAR100(train=True, path=None):
-    """Thin wrapper around torchvision.datasets.CIFAR100
-    """
+    """Thin wrapper around torchvision.datasets.CIFAR100"""
     mean, std = [0.507, 0.487, 0.441], [0.267, 0.256, 0.276]
     normalize = transforms.Normalize(mean=mean, std=std)
     if train:
@@ -123,8 +120,7 @@ def CIFAR100(train=True, path=None):
 
 
 def ImageNet(train=True, path=None):
-    """Thin wrapper around IndexedImageDataset
-    """
+    """Thin wrapper around IndexedImageDataset"""
     # TODO Better data augmentation?
     # ImageNet loading from files can produce benign EXIF errors
     import warnings
@@ -144,8 +140,7 @@ def ImageNet(train=True, path=None):
 
 
 def Places365(train=True, path=None):
-    """Thin wrapper around IndexedImageDataset
-    """
+    """Thin wrapper around IndexedImageDataset"""
     # Note : Bolei used the normalization for Imagenet, not the one for Places!
     # # https://github.com/CSAILVision/places365/blob/master/train_placesCNN.py
     # So these are kept so weights are compatible
@@ -164,8 +159,7 @@ def Places365(train=True, path=None):
 
 
 def TinyImageNet(train=True, path=None):
-    """Thin wrapper around IndexedImageDataset
-    """
+    """Thin wrapper around IndexedImageDataset"""
     # TODO Better data augmentation
 
     mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
@@ -181,8 +175,7 @@ def TinyImageNet(train=True, path=None):
 
 
 def Miniplaces(train=True, path=None):
-    """Thin wrapper around IndexedImageDataset
-    """
+    """Thin wrapper around IndexedImageDataset"""
     # TODO compute normalization constants for Miniplaces
     # TODO Better data augmentation
 
@@ -200,5 +193,6 @@ def Miniplaces(train=True, path=None):
 
 def nanoImageNet(train=True, path=None):
     from .subset import subset_dataset
+
     d = ImageNet(train=train, path=path)
     return subset_dataset(d, 10, 1000)
