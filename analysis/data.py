@@ -18,7 +18,7 @@ def filter_df(df, **kwargs):
     return df
 
 
-def augment_df(df, fn, name=None):
+def _augment_df(df, fn, name=None, register=None):
     name = fn.__name__ if name is None else name
     params = list(inspect.signature(fn).parameters.keys())
     fixed = {p: df.attrs["uniq"][p] for p in params if p not in df.columns}
@@ -32,6 +32,17 @@ def augment_df(df, fn, name=None):
         return fn(**kwargs)
 
     df[name] = df.apply(wrapper, axis=1)
+
+    if register:
+        if not register in df.attrs:
+            df.attrs[register] = []
+        if name not in df.attrs[register]:
+            df.attrs[register].append(name)
+
+
+def augment_df(df, *fns, register=None):
+    for f in fns:
+        _augment_df(df, f, register=register)
 
 
 def unique_combinations(df, cols):
@@ -124,3 +135,16 @@ def acc2err(df):
             c2 = c.replace("acc", "err")
             df[c2] = 100 * (1 - df[c])
             df.attrs["log_cols"].append(c2)
+
+
+from fastcore.foundation import patch
+
+
+@patch
+def augment(df: pd.DataFrame, *fns, register=None):
+    return augment_df(df, *fns, register=register)
+
+
+@patch
+def select(df: pd.DataFrame, **kwargs):
+    return filter_df(df, **kwargs)
