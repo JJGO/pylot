@@ -3,14 +3,14 @@
 from torch import nn
 import torchvision.models
 from .cifar_vgg import VGGBnDrop
-from .cifar_resnet import ResNet
+from .cifar_resnet import ResNet as CifarResnet
 
 # classifier is .fc
 MODELS_WITH_FC = (
     torchvision.models.ResNet,
     torchvision.models.GoogLeNet,
     torchvision.models.ShuffleNetV2,
-    ResNet,
+    CifarResnet,
 )
 
 # classifier is .classifier
