@@ -11,7 +11,7 @@ import time
 import yaml
 
 from ..util import MeterCSVLogger, printc
-from ..util import dict_recursive_update, expand_dots, allbut
+from ..util import dict_recursive_update, expand_dots, allbut, get_full_env_info
 from .util import fix_seed
 
 
@@ -66,7 +66,6 @@ class Experiment:
             uid = self.generate_uid()
         self.uid = uid
         self.path = pathlib.Path(root) / self.uid
-        self.save_config()
 
     def _init_existing(self, path):
         existing_cfg = pathlib.Path(path) / "config.yml"
@@ -114,6 +113,12 @@ class Experiment:
         printc(f"Logging results to {self.path}", color="MAGENTA")
 
         self.csvlogger = MeterCSVLogger(self.path / "logs.csv")
+
+        # Save environment for repro
+        envinfo_path = self.path / "env.yml"
+        with open(envinfo_path, "a+") as f:
+            yaml.dump([get_full_env_info()], f)
+        self.save_config()
 
     def log(self, *args, **kwargs):
         self.csvlogger.set(*args, **kwargs)
