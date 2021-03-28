@@ -6,10 +6,9 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 
-@dataclass(eq=False)
 class SelfsuperDataset(Dataset):
-
-    inner_dataset: Dataset
+    def __init__(self, inner_dataset: Dataset):
+        self.inner_dataset = inner_dataset
 
     def __getitem__(self, index) -> Tuple[Tensor, Tensor]:
         x = self.inner_dataset[index]
