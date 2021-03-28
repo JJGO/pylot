@@ -134,21 +134,23 @@ class TrainExperiment(Experiment):
         if scheduler_state:
             self.load_scheduler(scheduler_state)
 
-    def _load_module(self, checkpoint, module):
+    def _load_module(self, checkpoint, module, ignore_missing=False):
         if isinstance(checkpoint, (str, pathlib.Path)):
             checkpoint = pathlib.Path(checkpoint)
             assert checkpoint.exists(), f"Checkpoint path {checkpoint} does not exist"
             checkpoint = torch.load(checkpoint)
-        getattr(self, module).load_state_dict(checkpoint[f"{module}_state_dict"])
+        getattr(self, module).load_state_dict(
+            checkpoint[f"{module}_state_dict"], strict=not ignore_missing
+        )
 
-    def load_model(self, checkpoint):
-        self._load_module(checkpoint, "model")
+    def load_model(self, checkpoint, ignore_missing=False):
+        self._load_module(checkpoint, "model", ignore_missing=ignore_missing)
 
-    def load_optim(self, checkpoint):
-        self._load_module(checkpoint, "optim")
+    def load_optim(self, checkpoint, ignore_missing=False):
+        self._load_module(checkpoint, "optim", ignore_missing=ignore_missing)
 
-    def load_scheduler(self, checkpoint):
-        self._load_module(checkpoint, "scheduler")
+    def load_scheduler(self, checkpoint, ignore_missing=False):
+        self._load_module(checkpoint, "scheduler", ignore_missing=ignore_missing)
 
     def to_device(self):
         # Torch CUDA config
@@ -190,13 +192,13 @@ class TrainExperiment(Experiment):
             return
         self.reload(tag=tag)
 
-    def reload(self, tag=None):
+    def reload(self, tag=None, ignore_missing=False):
         tag = tag if tag is not None else "last"
         checkpoint_file = f"{tag}.pt"
         checkpoint = torch.load(self.checkpoint_path / checkpoint_file)
         self._epoch = checkpoint["epoch"]
-        self.load_model(checkpoint)
-        self.load_optim(checkpoint)
+        self.load_model(checkpoint, ignore_missing=ignore_missing)
+        self.load_optim(checkpoint, ignore_missing=ignore_missing)
         if self.scheduler is not None:
             self.load_scheduler(checkpoint)
         printc(
