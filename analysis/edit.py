@@ -38,4 +38,4 @@ def inplace_yaml(path, backup=False):
     if backup:
         _backup_file(path)
     with open(path, "w") as f:
-        yaml.dump(data, f)
+        yaml.dump(data, f, indent=2)
