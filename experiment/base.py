@@ -110,7 +110,8 @@ class Experiment:
         assert hasattr(self, "uid"), "UID needs to have been generated first"
         assert hasattr(self, "path"), "UID needs to have been generated first"
         self.path.mkdir(exist_ok=True, parents=True)
-        printc(f"Logging results to {self.path}", color="MAGENTA")
+        # printc(f"Logging results to {self.path}", color="MAGENTA")
+        print(f'{self.path}')
 
         self.csvlogger = MeterCSVLogger(self.path / "logs.csv")
 
