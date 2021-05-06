@@ -1,54 +1,37 @@
-#!/usr/bin/env python
-
-
-import argparse
-import pathlib
+from pathlib import Path
 import shutil
 
-import pandas as pd
+import typer
 
-parser = argparse.ArgumentParser(description="Cleanup failed experiments")
-parser.add_argument(
-    "-n",
-    "--dry-run",
-    dest="dryrun",
-    action="store_true",
-    help="Do dry run without deleting experiments",
-)
-parser.add_argument(
-    "-e",
-    "--epochs",
-    dest="epochs",
-    default=5,
-    type=int,
-    help="Number of epochs to use as a threshold",
-)
-parser.add_argument(
-    "root", type=str, default="results", help="Folder containing the experiment folders"
-)
 
-if __name__ == "__main__":
+def cleanup_experiments(
+    root: Path,
+    dryrun: bool = typer.Option(False, '-n', '--dry-run', help='Perform dry-run without deleting the experiments'),
+    min_epochs: int = typer.Option(3, '-e', '--epochs', help='Number of epochs to use as a threshold')
+):
 
-    args = parser.parse_args()
-    path = pathlib.Path(args.root)
-
-    assert path.exists(), f"Couldn't find {path}"
-
-    for expdir in path.iterdir():
+    for expdir in root.iterdir():
 
         delete = False
-        logfile = expdir / "logs.csv"
+
+        logfile = expdir / 'logs.csv'
         if not logfile.exists():
-            logfile = expdir / "0" / "logs.csv"
+            logfile = expdir / '0/logs.csv'
+
         if logfile.exists():
-            df = pd.read_csv(logfile)
-            if len(df) < args.epochs:
-                delete = True
+            with open(logfile, 'r') as f:
+                epochs = sum(1 for _ in f) - 1
+                if epochs < min_epochs:
+                    delete = True
         else:
             delete = True
 
         if delete:
-            if args.dryrun:
+            if dryrun:
                 print(expdir)
             else:
                 shutil.rmtree(expdir)
+
+
+if __name__ == '__main__':
+    typer.run(cleanup_experiments)
