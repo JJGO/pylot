@@ -8,7 +8,9 @@ from ipywidgets import (
     VBox,
     Label,
 )
-from IPython.display import clear_output, display
+import io
+import matplotlib.pyplot as plt
+from IPython.display import clear_output, display, HTML
 
 from ..ui import disable_widget_scroll, widget_dark_mode
 
@@ -47,10 +49,17 @@ class PlotUI:
         clear_output(wait=True)
         display(self.ui)
         self.current_fig = self.plot_fn(**kwargs)
+        f = io.BytesIO()
+        plt.savefig(f, format="svg", bbox_inches="tight")
+        plt.close()
+        self.svg_str = f.getvalue().decode()
+        display(HTML(self.svg_str))
 
     def save_image(self):
-        fig = self.current_fig
-        fig.savefig(f"{self.textbox.value}.pdf", filetype="pdf", bbox_inches="tight")
+        # fig = self.current_fig
+        # fig.savefig(f"{self.textbox.value}.pdf", filetype="pdf", bbox_inches="tight")
+        with open(f"{self.textbox.value}.svg", "w") as f:
+            print(self.svg_str, file=f)
 
     def save_preset(self):
         self.presets[self.textbox.value] = self.knob_values()
