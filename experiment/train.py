@@ -101,9 +101,10 @@ class TrainExperiment(Experiment):
 
         self.loss_func = loss_func
 
-    def build_train(self, optim, epochs, scheduler=None, warmup=None):
+    def build_train(self, optim, epochs, scheduler=None, warmup=None, accumulate_gradients=None):
 
         self.epochs = epochs
+        self.accumulate_gradients = accumulate_gradients
 
         # Optim
         if isinstance(optim, dict):
@@ -139,18 +140,23 @@ class TrainExperiment(Experiment):
             checkpoint = pathlib.Path(checkpoint)
             assert checkpoint.exists(), f"Checkpoint path {checkpoint} does not exist"
             checkpoint = torch.load(checkpoint)
-        getattr(self, module).load_state_dict(
-            checkpoint[f"{module}_state_dict"], strict=not ignore_missing
-        )
+        if module == 'model':
+            getattr(self, module).load_state_dict(
+                checkpoint[f"{module}_state_dict"], strict=not ignore_missing
+            )
+        else:
+            getattr(self, module).load_state_dict(
+                checkpoint[f"{module}_state_dict"]
+            )
 
     def load_model(self, checkpoint, ignore_missing=False):
         self._load_module(checkpoint, "model", ignore_missing=ignore_missing)
 
-    def load_optim(self, checkpoint, ignore_missing=False):
-        self._load_module(checkpoint, "optim", ignore_missing=ignore_missing)
+    def load_optim(self, checkpoint):
+        self._load_module(checkpoint, "optim")
 
-    def load_scheduler(self, checkpoint, ignore_missing=False):
-        self._load_module(checkpoint, "scheduler", ignore_missing=ignore_missing)
+    def load_scheduler(self, checkpoint):
+        self._load_module(checkpoint, "scheduler")
 
     def to_device(self):
         # Torch CUDA config
@@ -198,7 +204,7 @@ class TrainExperiment(Experiment):
         checkpoint = torch.load(self.checkpoint_path / checkpoint_file)
         self._epoch = checkpoint["epoch"]
         self.load_model(checkpoint, ignore_missing=ignore_missing)
-        self.load_optim(checkpoint, ignore_missing=ignore_missing)
+        self.load_optim(checkpoint)
         if self.scheduler is not None:
             self.load_scheduler(checkpoint)
         printc(
@@ -298,8 +304,9 @@ class TrainExperiment(Experiment):
                     with timer("t_optim"):
                         if isinstance(self.scheduler, WarmupScheduler):
                             self.scheduler.warmup_step()
-                        self.optim.step()
-                        self.optim.zero_grad()
+                        if self.accumulate_gradients is None or (i+1) % self.accumulate_gradients == 0:
+                            self.optim.step()
+                            self.optim.zero_grad()
 
                 meters[f"{phase}_loss"].add(loss.item())
                 self.compute_metrics(phase, meters, loss, y, yhat)
@@ -347,11 +354,15 @@ class TrainExperiment(Experiment):
     def test(self, epoch=0):
         return self.run_epoch(False, epoch, test=True)
 
-    def run(self):
-        self.build_logging()
-        self.to_device()
-        printc(f"Running {str(self)}", color="YELLOW")
-        self.run_epochs()
+    def run(self, resume=False):
+        if not resume:
+            self.to_device()
+            self.build_logging()
+            printc(f"Running {str(self)}", color="YELLOW")
+            self.run_epochs()
+        else:
+            self.load()
+            self.resume()
 
     def resume(self):
         last_epoch = self._epoch
