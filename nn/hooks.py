@@ -21,7 +21,8 @@ def HookedModule(
             hooks.append(mod.register_forward_hook(hookfn))
         else:
             hooks.append(mod.register_backward_hook(hookfn))
-    yield module
-
-    for hook in hooks:
-        hook.remove()
+    try:
+        yield module
+    finally:
+        for hook in hooks:
+            hook.remove()
