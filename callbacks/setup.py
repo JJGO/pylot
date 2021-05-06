@@ -1,5 +1,7 @@
 import json
 
+import pandas as pd
+
 from ..log import summary
 
 
@@ -13,7 +15,7 @@ def Summary(experiment, filename="summary.txt"):
     if not summary_path.exists():
 
         with open(summary_path, "w") as f:
-            s = summary(experiment.model, x.shape[1:], echo=False, device="cpu")
+            s = summary(experiment.model, x.shape[1:], echo=False, device=experiment.device)
             print(s, file=f)
 
             print("\n\nOptim\n", file=f)
@@ -25,7 +27,7 @@ def Summary(experiment, filename="summary.txt"):
 
         with open(summary_path.with_suffix(".json"), "w") as f:
             s = summary(
-                experiment.model, x.shape[1:], echo=False, device="cpu", as_stats=True
+                experiment.model, x.shape[1:], echo=False, device=experiment.device, as_stats=True
             )
             json.dump(s, f)
 
@@ -34,6 +36,8 @@ def Topology(experiment, filename="topology"):
     from torchviz import make_dot
 
     x, y = next(iter(experiment.train_dl))
+    x = x.to(experiment.device)
+    y = y.to(experiment.device)
 
     # Save model topology
     topology_path = experiment.path / filename
@@ -50,7 +54,7 @@ def Topology(experiment, filename="topology"):
         topology_path.unlink()
 
 
-def ParameterTable(experiment):
+def ParameterTable(experiment, save=False):
 
     from rich.console import Console
     from rich.table import Table
@@ -65,14 +69,21 @@ def ParameterTable(experiment):
     table.add_column("Dtype")
     table.add_column("Dev")
 
+    data = []
     for k, v in experiment.model.named_parameters():
         row = [k, tuple(v.size()), v.numel(), v.requires_grad, v.dtype, v.device]
+        data.append(row)
         table.add_row(*[str(i) for i in row])
 
     console.print(table)
 
+    if save:
+        columns = ['param', 'shape', 'numel', 'grad', 'dtype', 'device']
+        df = pd.DataFrame(data, columns=columns)
+        df.to_csv(experiment.path / 'params.csv', index=False)
 
-def ModuleTable(experiment):
+
+def ModuleTable(experiment, save=False):
 
     from rich.console import Console
     from rich.table import Table
@@ -83,9 +94,15 @@ def ModuleTable(experiment):
     table.add_column("Module")
     table.add_column("Name")
 
+    data = []
     for k, m in experiment.model.named_modules():
         row = [m.__class__.__name__, k]
+        data.append(row)
         table.add_row(*[str(i) for i in row])
 
     console.print(table)
 
+    if save:
+        columns = ['module', 'name']
+        df = pd.DataFrame(data, columns=columns)
+        df.to_csv(experiment.path / 'params.csv', index=False)

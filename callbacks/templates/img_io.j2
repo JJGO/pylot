@@ -37,6 +37,16 @@
 {% endfor %}
 </tr>
 
+<tr>
+<td> Last ({{ epochs-1 }}) </td>
+{% for i in range(samples) %}
+    {% for c in range(channels_out) %}
+    <td> {{ imgYh[epochs-1][i][c] }} </td>
+    {% endfor %}
+    <td></td>
+{% endfor %}
+</tr>
+
 {% for e in imgYh %}
     <tr>
     <td> {{e}} </td>

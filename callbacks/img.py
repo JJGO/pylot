@@ -3,7 +3,6 @@ import io
 import json
 import pathlib
 import os
-import zipfile
 from dataclasses import dataclass
 from typing import Optional, List, Tuple, Any
 
@@ -79,9 +78,8 @@ class TemplateCallback:
 
         if self.data_path.exists():
             os.remove(self.data_path)
-        with zipfile.ZipFile(self.data_path, "x") as z:
-            with z.open(f"{self.name}.json", "w") as c:
-                c.write(json.dumps(self.data.to_dict()).encode("utf-8"))
+            with open(f"{self.name}.json", "w") as f:
+                json.dump(self.data.to_dict(), f)
 
         return html
 
