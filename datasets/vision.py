@@ -2,6 +2,7 @@ import pathlib
 import os
 
 from torchvision import transforms, datasets
+import PIL
 
 from .cache import IndexedImageDataset
 
@@ -81,11 +82,21 @@ def dataset_builder(dataset, train=True, normalize=None, preproc=None, path=None
     return _constructors[dataset](path, train=train, **kwargs)
 
 
-def MNIST(train=True, path=None, norm=False):
+def MNIST(train=True, path=None, norm=False, augmentation=False, augment_kw=None):
     """Thin wrapper around torchvision.datasets.CIFAR10"""
+    augment_kwargs = dict(
+        degrees=10,
+        translate=(0.05, 0.05),
+        scale=(0.9, 1.0),
+        shear=(5, 5),
+        resample=PIL.Image.BILINEAR,
+    )
+    if augment_kw:
+        augment_kwargs.update(augment_kw)
     mean, std = 0.1307, 0.3081
     normalize = transforms.Normalize(mean=(mean,), std=(std,)) if norm else None
-    dataset = dataset_builder("MNIST", train, normalize, [], path)
+    preproc = [] if not augmentation else [transforms.RandomAffine(**augment_kwargs)]
+    dataset = dataset_builder("MNIST", train, normalize, preproc, path)
     dataset.shape = (1, 28, 28)
     dataset.n_classes = 10
     return dataset

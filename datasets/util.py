@@ -17,8 +17,9 @@ def train_val_split(dataset, val_split, seed=None):
 
 def stratified_train_val_split(dataset, val_split, seed=None):
     indices = np.arange(len(dataset))
+    stratify = getattr(dataset, 'targets', None)
     train_indices, val_indices = train_test_split(
-        indices, test_size=val_split, random_state=seed, stratify=dataset.targets
+        indices, test_size=val_split, random_state=seed, stratify=stratify
     )
     return Subset(dataset, train_indices), Subset(dataset, val_indices)
 
