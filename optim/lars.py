@@ -6,8 +6,6 @@ References:
     - https://github.com/noahgolmant/pytorch-lars/blob/master/lars.py
 """
 
-from contextlib import contextmanager
-
 import torch
 from .wrapper import OptimWrapper
 
