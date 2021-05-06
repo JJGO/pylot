@@ -1,5 +1,6 @@
 import torch.cuda
 import subprocess
+from ..util.gpu import gpu_stats
 
 
 def nvidia_smi(experiment):
@@ -9,10 +10,14 @@ def nvidia_smi(experiment):
     return nvidia_smi_callback
 
 
-def CUDAMemory(experiment):
-    def CUDAMemoryCallback(epoch):
-        max_allocated = torch.cuda.max_memory_allocated() / 1024 ** 2
-        allocated = torch.cuda.memory_allocated() / 1024 ** 2
-        print(f"Allocated CUDA memory {allocated:.0f} / {max_allocated:.0f} MB")
+def GPUStats(experiment):
+    def GPUStatsCallback(_):
+        df = gpu_stats(visible=True)
+        print(df)
+        if torch.cuda.is_available():
+            allocated = torch.cuda.memory_allocated() / 1024 ** 2
+            max_allocated = torch.cuda.max_memory_allocated() / 1024 ** 2
+            print(f"Current Allocated CUDA memory {allocated:.2f} MB")
+            print(f"Maximum Allocated CUDA memory {max_allocated:.2f} MB")
 
-    return CUDAMemoryCallback
+    return GPUStatsCallback
