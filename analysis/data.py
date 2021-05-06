@@ -10,10 +10,12 @@ import pandas as pd
 def filter_df(df, **kwargs):
     attrs = df.attrs
     for k, vs in kwargs.items():
-        if not isinstance(vs, list):
-            df = df[getattr(df, k) == vs]
+        if vs is None:
+            df = df[df.__getitem__(k).isna()]
+        elif not isinstance(vs, list):
+            df = df[df.__getitem__(k) == vs]
         else:
-            df = df[getattr(df, k).isin(vs)]
+            df = df[df.__getitem__(k).isin(vs)]
     df.attrs = attrs
     return df
 
@@ -66,6 +68,25 @@ def group_mean_std(df):
     return df
 
 
+def repivot_loss(df):
+    ignore_cols = [c for c in df.columns if not c.endswith("_loss")]
+    loss_cols = [c for c in df.columns if c.endswith("_loss")]
+    dfp = pd.melt(
+        df,
+        id_vars=ignore_cols,
+        value_vars=loss_cols,
+        var_name="phase",
+        value_name="loss",
+    )
+    dfp.attrs["exp_cols"] = df.attrs["exp_cols"] + ["phase"]
+    dfp.attrs["log_cols"] = [c for c in df.attrs["log_cols"] if c not in loss_cols] + [
+        "loss"
+    ]
+    dfp.phase = dfp.phase.str[: -len("_loss")]
+    dfp = dfp[~dfp.loss.isna()]
+    return dfp
+
+
 def move_df(df, root):
     root = pathlib.Path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -102,13 +123,19 @@ def df_from_dict(d):
     return pd.DataFrame.from_dict(d, orient="index", columns=[""])
 
 
-def unique_per_column(df, every=False, counts=True, pretty=False):
+def unique_per_column(
+    df, every=False, counts=True, pretty=False, constant_columns=False
+):
     uniqs = {}
     for c in df.columns:
         col = df[c].fillna("None")
 
         x = col.unique()
+        # Ignore columns like path that are different for each exp
         if not every and len(x) == len(df):
+            continue
+        # Ignore columns with only one item
+        if not constant_columns and len(x) == 1:
             continue
         if counts:
             counts = collections.Counter(col.values)
@@ -141,8 +168,18 @@ from fastcore.foundation import patch
 
 
 @patch
+def _augment(df: pd.DataFrame, *fns, register=None):
+    return augment_df(df, *fns, register=register)
+
+
+@patch
 def augment(df: pd.DataFrame, *fns, register=None):
     return augment_df(df, *fns, register=register)
+
+
+@patch
+def _select(df: pd.DataFrame, **kwargs):
+    return filter_df(df, **kwargs)
 
 
 @patch
