@@ -115,7 +115,9 @@ class TrainExperiment(Experiment):
 
         self.loss_func = loss_func
 
-    def build_train(self, optim, epochs, scheduler=None, warmup=None, accumulate_gradients=None):
+    def build_train(
+        self, optim, epochs, scheduler=None, warmup=None, accumulate_gradients=None
+    ):
 
         self.epochs = epochs
         self.accumulate_gradients = accumulate_gradients
@@ -154,14 +156,12 @@ class TrainExperiment(Experiment):
             checkpoint = pathlib.Path(checkpoint)
             assert checkpoint.exists(), f"Checkpoint path {checkpoint} does not exist"
             checkpoint = torch.load(checkpoint)
-        if module == 'model':
+        if module == "model":
             getattr(self, module).load_state_dict(
                 checkpoint[f"{module}_state_dict"], strict=not ignore_missing
             )
         else:
-            getattr(self, module).load_state_dict(
-                checkpoint[f"{module}_state_dict"]
-            )
+            getattr(self, module).load_state_dict(checkpoint[f"{module}_state_dict"])
 
     def load_model(self, checkpoint, ignore_missing=False):
         self._load_module(checkpoint, "model", ignore_missing=ignore_missing)
@@ -318,7 +318,10 @@ class TrainExperiment(Experiment):
                     with timer("t_optim"):
                         if isinstance(self.scheduler, WarmupScheduler):
                             self.scheduler.warmup_step()
-                        if self.accumulate_gradients is None or (i+1) % self.accumulate_gradients == 0:
+                        if (
+                            self.accumulate_gradients is None
+                            or (i + 1) % self.accumulate_gradients == 0
+                        ):
                             self.optim.step()
                             self.optim.zero_grad()
 
