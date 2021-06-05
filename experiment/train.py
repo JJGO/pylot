@@ -96,8 +96,20 @@ class TrainExperiment(Experiment):
         if weights is not None:
             self.load_model(weights)
 
-    def build_loss(self, loss, flatten=False, **loss_kwargs):
-        loss_func = any_getattr(self.LOSS, loss)(**loss_kwargs)
+    def build_loss(self, loss_func=None, flatten=False, **loss_kwargs):
+        if loss_func is None and "loss" in loss_kwargs:
+            loss_func = loss_kwargs.pop("loss")
+            printc(
+                "WARN: loss.loss is deprecated, please use loss.loss_func",
+                color="ORANGE",
+            )
+        if loss_func == "MultiLoss":
+            losses = []
+            for sub_loss in loss_kwargs["losses"]:
+                sub_loss_func = sub_loss.pop("loss_func")
+                losses.append(any_getattr(self.LOSS, sub_loss_func)(**sub_loss))
+            loss_kwargs["losses"] = losses
+        loss_func = any_getattr(self.LOSS, loss_func)(**loss_kwargs)
         if flatten:
             loss_func = flatten_loss(loss_func)
 
