@@ -5,6 +5,7 @@ import pathlib
 import pandas as pd
 from tqdm.autonotebook import tqdm
 
+from .data import drop_std
 from ..util import FileCache
 from ..util import expand_keys, delete_with_prefix
 
@@ -38,11 +39,9 @@ def shorthand_columns(df, return_dict=False):
 def add_experiment_metadata(df):
 
     path = df["experiment.path"]
-    df["experiment.hash"] = path.apply(lambda p: p.name.split("-")[3])
-    df["experiment.nonce"] = path.apply(lambda p: p.name.split("-")[2])
-    df["experiment.create_time"] = path.apply(
-        lambda p: p.name[: len("YYYYMMDD-hhmmss")]
-    )
+    df["experiment.hash"] = path.map(lambda p: p.name.split("-")[3])
+    df["experiment.nonce"] = path.map(lambda p: p.name.split("-")[2])
+    df["experiment.create_time"] = path.map(lambda p: p.name[: len("YYYYMMDD-hhmmss")])
     return df
 
 
@@ -61,25 +60,13 @@ def list2tuple(val):
     return val
 
 
-def drop_std(df):
-    drops = []
-    renames = {}
-    for c in df.columns:
-        if c.endswith("_std"):
-            drops.append(c)
-        elif c.endswith("_mean"):
-            pre = c[: -len("_mean")]
-            renames[c] = pre
-    df.drop(columns=drops, inplace=True)
-    df.rename(columns=renames, inplace=True)
-    return df
-
-
 class ResultsLoader:
     def __init__(self, cache_file="/tmp/pylot-results.cache"):
         self.filecache = FileCache(cache_file)
 
-    def load_configs(self, *paths, shorthand=True, dedup=True, metadata=False):
+    def load_configs(
+        self, *paths, shorthand=True, dedup=False, metadata=False, categories=False
+    ):
         columns = {}
 
         # folders = pathlib.Path(path).iterdir
@@ -122,10 +109,12 @@ class ResultsLoader:
 
         if dedup:
             df.attrs["uniq"] = dedup_df(df)
+        if categories:
+            df = df.to_categories()
         return df
 
     def load_logs(
-        self, *paths, shorthand=True, dedup=True, metadata=False, df=None, std=False
+        self, *paths, shorthand=True, dedup=False, metadata=False, df=None, std=False
     ):
         if len(paths) > 0:
             df = self.load_configs(
@@ -143,14 +132,16 @@ class ResultsLoader:
             if not std:
                 drop_std(log_df)
             log_df.rename(columns={c: f"log.{c}" for c in log_df.columns}, inplace=True)
+            log_df["path"] = path
 
-            for k, v in row.items():
-                log_df[k] = [v for _ in range(len(log_df))]
+            # for k, v in row.items():
+            #     log_df[k] = [v for _ in range(len(log_df))]
             log_dfs.append(log_df)
 
         self.filecache.dump()
 
         full_df = pd.concat(log_dfs, ignore_index=True)
+        full_df = pd.merge(df, full_df, on="path")
 
         if shorthand:
             renames = {}
@@ -171,7 +162,7 @@ class ResultsLoader:
         return full_df
 
     def load_agg_logs(
-        self, *paths, agg=None, shorthand=True, dedup=True, metadata=False, df=None
+        self, *paths, agg=None, shorthand=True, dedup=False, metadata=False, df=None
     ):
         if len(paths) > 0:
             df = self.load_logs(
@@ -196,7 +187,9 @@ class ResultsLoader:
 
         # g = "path" if shorthand else "experiment.path"
         g = df.attrs["exp_cols"]
-        agg_df = df.groupby(g, as_index=False, dropna=False).agg(_agg_fns)
+        agg_df = df.groupby(g, as_index=False, dropna=False, observed=True).agg(
+            _agg_fns
+        )
         agg_df.columns = [
             col if agg == "" else f"{agg}_{col}" for col, agg in agg_df.columns.values
         ]
