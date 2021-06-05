@@ -67,11 +67,13 @@ class TrainExperiment(Experiment):
         constructor = any_getattr(self.DATASETS, dataset)
         kwargs = allbut(data_kwargs, ["dataloader"])
         self.dataset = constructor(train=True, **kwargs)
-        seed = self.get_param("experiment.seed")
         self.test_dataset = constructor(train=False, **kwargs)
         if val_split is not None:
+            # Replicates should be done for weight initialization, they should not
+            # touch how data is partitioned, for that make use of a fold parameter
+            # in the dataset and split using sklearn or something
             self.train_dataset, self.val_dataset = stratified_train_val_split(
-                self.dataset, val_split, seed=seed
+                self.dataset, val_split, seed=data_kwargs.get("seed", 42)
             )
         else:
             self.train_dataset = self.dataset
