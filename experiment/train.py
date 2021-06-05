@@ -20,7 +20,7 @@ from .util import any_getattr
 from ..datasets import stratified_train_val_split
 from ..log import summary
 from ..loss import flatten_loss
-from ..util import printc, StatsMeter, StatsTimer, CUDATimer, allbut
+from ..util import printc, StatsMeter, StatsTimer, StatsCUDATimer, allbut
 from ..scheduler import WarmupScheduler
 from .. import callbacks
 from .. import datasets
@@ -275,7 +275,7 @@ class TrainExperiment(Experiment):
             dl = self.test_dl
 
         meters = defaultdict(StatsMeter)
-        timercls = CUDATimer if torch.cuda.is_available() else StatsTimer
+        timercls = StatsCUDATimer if torch.cuda.is_available() else StatsTimer
         timer = timercls(unit="ms", skip=10)
         epoch_timer = timercls(unit="ms")
         if not timing:
