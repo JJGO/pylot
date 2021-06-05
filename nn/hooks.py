@@ -26,3 +26,4 @@ def HookedModule(
     finally:
         for hook in hooks:
             hook.remove()
+
