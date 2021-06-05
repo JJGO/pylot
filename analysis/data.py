@@ -7,46 +7,6 @@ import numpy as np
 import pandas as pd
 
 
-def filter_df(df, **kwargs):
-    attrs = df.attrs
-    for k, vs in kwargs.items():
-        if vs is None:
-            df = df[df.__getitem__(k).isna()]
-        elif not isinstance(vs, list):
-            df = df[df.__getitem__(k) == vs]
-        else:
-            df = df[df.__getitem__(k).isin(vs)]
-    df.attrs = attrs
-    return df
-
-
-def _augment_df(df, fn, name=None, register=None):
-    name = fn.__name__ if name is None else name
-    params = list(inspect.signature(fn).parameters.keys())
-    fixed = {p: df.attrs["uniq"][p] for p in params if p not in df.columns}
-    params = [p for p in params if p not in fixed]
-
-    if len(fixed) > 0:
-        fn = functools.partial(fn, **fixed)
-
-    def wrapper(row):
-        kwargs = {k: row.get(k) for k in params}
-        return fn(**kwargs)
-
-    df[name] = df.apply(wrapper, axis=1)
-
-    if register:
-        if not register in df.attrs:
-            df.attrs[register] = []
-        if name not in df.attrs[register]:
-            df.attrs[register].append(name)
-
-
-def augment_df(df, *fns, register=None):
-    for f in fns:
-        _augment_df(df, f, register=register)
-
-
 def unique_combinations(df, cols):
     # Like .unique() but for combinations of columns and with counts as well
     return df.groupby(by=cols).size().reset_index().rename(columns={0: "count"})
@@ -68,6 +28,20 @@ def group_mean_std(df):
     return df
 
 
+def drop_std(df):
+    drops = []
+    renames = {}
+    for c in df.columns:
+        if c.endswith("_std"):
+            drops.append(c)
+        elif c.endswith("_mean"):
+            pre = c[: -len("_mean")]
+            renames[c] = pre
+    df.drop(columns=drops, inplace=True)
+    df.rename(columns=renames, inplace=True)
+    return df
+
+
 def repivot_loss(df):
     ignore_cols = [c for c in df.columns if not c.endswith("_loss")]
     loss_cols = [c for c in df.columns if c.endswith("_loss")]
@@ -82,78 +56,10 @@ def repivot_loss(df):
     dfp.attrs["log_cols"] = [c for c in df.attrs["log_cols"] if c not in loss_cols] + [
         "loss"
     ]
+    # dfp.attrs["uniq"] = df.attrs["uniq"]
     dfp.phase = dfp.phase.str[: -len("_loss")]
     dfp = dfp[~dfp.loss.isna()]
     return dfp
-
-
-def move_df(df, root):
-    root = pathlib.Path(root)
-    root.mkdir(parents=True, exist_ok=True)
-    paths = df.path.values
-    for path in paths:
-        if not path.exists():
-            continue
-        target = root / path.name
-        # path.replace(target)
-        shutil.move(path, target)
-
-
-def broadcast_attr(df, col, to=None, concat=True, **when):
-
-    tmp = filter_df(df, **when)
-    vals = tmp[col].unique()
-    if to is None:
-        to = [c for c in df[~df[col].isna()][col].unique() if c not in vals]
-    if not isinstance(to, (tuple, list)):
-        to = [to]
-    join = np.array([[old, new] for old in vals for new in to])
-    join = pd.DataFrame(data=join, columns=[f"{col}_old", col])
-    tmp = tmp.rename(columns={col: f"{col}_old"})
-    tmp = pd.merge(tmp, join, on=f"{col}_old")
-    tmp.drop(columns=[f"{col}_old"], inplace=True)
-    if concat:
-        merged = pd.concat([df, tmp])
-        merged.attrs = df.attrs
-        return merged
-    return tmp
-
-
-def df_from_dict(d):
-    return pd.DataFrame.from_dict(d, orient="index", columns=[""])
-
-
-def unique_per_column(
-    df, every=False, counts=True, pretty=False, constant_columns=False
-):
-    uniqs = {}
-    for c in df.columns:
-        col = df[c].fillna("None")
-
-        x = col.unique()
-        # Ignore columns like path that are different for each exp
-        if not every and len(x) == len(df):
-            continue
-        # Ignore columns with only one item
-        if not constant_columns and len(x) == 1:
-            continue
-        if counts:
-            counts = collections.Counter(col.values)
-            key = lambda x: (x[0].__class__.__name__, x[0], x[1])
-            uniqs[c] = sorted(counts.items(), key=key)
-        else:
-            uniqs[c] = x
-    if not pretty:
-        return uniqs
-
-    index = list(uniqs.keys())
-    data = []
-    for c in uniqs:
-        if counts:
-            data.append(["   ".join([f"{v} #{c}" for v, c in uniqs[c]])])
-        else:
-            data.append([" ".join(uniqs[c])])
-    return pd.DataFrame(data=data, index=index, columns=[""])
 
 
 def acc2err(df):
@@ -162,26 +68,3 @@ def acc2err(df):
             c2 = c.replace("acc", "err")
             df[c2] = 100 * (1 - df[c])
             df.attrs["log_cols"].append(c2)
-
-
-from fastcore.foundation import patch
-
-
-@patch
-def _augment(df: pd.DataFrame, *fns, register=None):
-    return augment_df(df, *fns, register=register)
-
-
-@patch
-def augment(df: pd.DataFrame, *fns, register=None):
-    return augment_df(df, *fns, register=register)
-
-
-@patch
-def _select(df: pd.DataFrame, **kwargs):
-    return filter_df(df, **kwargs)
-
-
-@patch
-def select(df: pd.DataFrame, **kwargs):
-    return filter_df(df, **kwargs)
