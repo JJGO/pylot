@@ -1,6 +1,7 @@
 from abc import abstractmethod
 import datetime
 import hashlib
+import json
 import pathlib
 import random
 import shutil
@@ -10,8 +11,11 @@ import sys
 import time
 import yaml
 
+import pandas as pd
+
 from ..util import MeterCSVLogger, printc
 from ..util import dict_recursive_update, expand_dots, allbut, get_full_env_info
+from ..util import TensorStore
 from .util import fix_seed
 
 
@@ -111,14 +115,17 @@ class Experiment:
         assert hasattr(self, "path"), "UID needs to have been generated first"
         self.path.mkdir(exist_ok=True, parents=True)
         # printc(f"Logging results to {self.path}", color="MAGENTA")
-        print(f'{self.path}')
+        print(f"{self.path}")
 
-        self.csvlogger = MeterCSVLogger(self.path / "logs.csv")
+        self.csvlogger = MeterCSVLogger(self.logs_path)
 
         # Save environment for repro
         envinfo_path = self.path / "env.yml"
         with open(envinfo_path, "a+") as f:
             yaml.dump([get_full_env_info()], f)
+
+        self.tensor_store = TensorStore(self.path / 'store.hdf5')
+
         self.save_config()
 
     def log(self, *args, **kwargs):
@@ -166,3 +173,39 @@ class Experiment:
                 return default
 
         return mapping
+
+    @property
+    def metrics_path(self):
+        return self.path / "metrics.jsonl"
+
+    def save_metrics(self, **metrics):
+
+        # Save as JSONL file
+        with open(self.metrics_path, "a") as f:
+            print(json.dumps(metrics), file=f)
+
+    def batch_save_metrics(self, metrics):
+
+        with open(self.metrics_path, "a") as f:
+            for metric in metrics:
+                print(json.dumps(metric), file=f)
+
+    @property
+    def metrics(self):
+        if self.metrics_path.exists():
+            with open(self.metrics_path, "r") as f:
+                return [json.loads(line) for line in f.readlines()]
+
+    @property
+    def metrics_df(self):
+        if self.metrics_path.exists():
+            return pd.read_json(self.metrics_path, lines=True)
+
+    @property
+    def logs_path(self):
+        return self.path / 'logs.csv'
+
+    @property
+    def logs_df(self):
+        if self.logs_path.exists():
+            return pd.read_csv(self.logs_path)
