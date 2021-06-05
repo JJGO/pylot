@@ -8,8 +8,8 @@ from matplotlib.colors import ListedColormap, LogNorm
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from pylot.analysis import filter_df
 from pylot.util import separate_kwargs
+import pylot.pandas
 
 viridis_high = ListedColormap(cm.get_cmap("viridis").colors[64:])
 
@@ -56,7 +56,7 @@ def factor_plot(
     _sns_kwargs, kwargs = separate_kwargs(kwargs, sns.relplot)
     sns_kwargs.update(**_sns_kwargs)
 
-    data = filter_df(data, **kwargs)
+    data = data.select(**kwargs)
 
     assert len(data) > 0, "Empty dataset"
 
@@ -115,7 +115,7 @@ def cat_plot(
     _sns_kwargs, kwargs = separate_kwargs(kwargs, sns.catplot)
     sns_kwargs.update(**_sns_kwargs)
 
-    data = filter_df(data, **kwargs)
+    data = data.select(**kwargs)
 
     assert len(data) > 0, "Empty dataset"
 
