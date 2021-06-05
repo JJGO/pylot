@@ -13,7 +13,11 @@ from .mapping import (
 from .meta import separate_kwargs, partial, delegates, GetAttr
 from .meter import StatsMeter, MaxMinMeter, MeterCSVLogger, Meter, UnionMeter
 from .print import printy
-from .timer import Timer, StatsTimer, CUDATimer
+from .timer import Timer, StatsTimer, CUDATimer, StatsCUDATimer
 from .env import get_full_env_info
 from .pipes import redirect_std, Tee
 from .debug import torch_traceback
+from .store import TensorStore
+from .functools import static_vars
+from .jupyter import notebook_put_into_clipboard
+from .edit import inplace_json, inplace_pandas_csv, inplace_yaml
