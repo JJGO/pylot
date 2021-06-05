@@ -1,90 +1,14 @@
-import base64
-import io
-import json
-import pathlib
-import os
 from dataclasses import dataclass
-from typing import Optional, List, Tuple, Any
+from typing import Optional, List, Any
 
-import jinja2
-from box import Box
 import torch
 from torch import Tensor
-from torch.utils.data import DataLoader
 
 from pylot.util.img import toImg, torch_renorm
 from pylot.nn.hooks import HookedModule
 
-
-def get_templateEnv() -> jinja2.Environment:
-    path = pathlib.Path(__file__).parent / "templates"
-    templateLoader = jinja2.FileSystemLoader(searchpath=path)
-    templateEnv = jinja2.Environment(
-        loader=templateLoader, undefined=jinja2.StrictUndefined
-    )
-    return templateEnv
-
-
-def tensor2html(tensor: Tensor, zoom: Optional[int] = None) -> str:
-
-    pil_image = toImg(torch_renorm(tensor))
-    buffered = io.BytesIO()
-    pil_image.save(buffered, format="PNG")
-    b64_image = base64.b64encode(buffered.getvalue())
-
-    width = ""
-    if zoom:
-        width = f" width: {pil_image.width * zoom}px"
-
-    html_img = (
-        f'<img style="{width}" src="data:image/png;base64,{b64_image.decode()}" />'
-    )
-
-    return html_img
-
-
-def sample_batches(
-    dataloader: DataLoader, batches: int
-) -> Tuple[List[Tensor], List[Tensor]]:
-    X, Y = [], []
-    it = iter(dataloader)
-    for _ in range(batches):
-        x, y = next(it)
-        X.append(x)
-        Y.append(y)
-    return X, Y
-
-
-class TemplateCallback:
-
-    _template = None
-
-    def __init__(self, name):
-        self.name = name if name else self._template
-        self.output_path = self.experiment.path / f"images/{self.name}.html"
-        self.data_path = self.experiment.path / f"images/{self.name}.json.gz"
-        self.output_path.parent.mkdir(exist_ok=True, parents=True)
-
-        self.data = Box()
-        self.templateEnv = get_templateEnv()
-
-    def __call__(self, epoch):
-        self.update(epoch)
-        template = self.templateEnv.get_template(self._template + ".j2")
-        self.data.epochs = epoch + 1
-        html = template.render(**self.data.to_dict())
-        with open(self.output_path, "w") as f:
-            print(html, file=f)
-
-        if self.data_path.exists():
-            os.remove(self.data_path)
-            with open(f"{self.name}.json", "w") as f:
-                json.dump(self.data.to_dict(), f)
-
-        return html
-
-    def update(self, epoch):
-        raise NotImplementedError
+from .util import sample_batches, tensor2html
+from .template import TemplateCallback
 
 
 @dataclass
