@@ -97,7 +97,7 @@ class StatsTimer(Timer):
             yield
 
 
-class CUDATimer(StatsTimer):
+class StatsCUDATimer(StatsTimer):
     def __init__(self, verbose=False, unit="s", skip=0, n_samples=None):
         assert torch.cuda.is_available(), "CUDA not available"
         super().__init__(
@@ -116,6 +116,26 @@ class CUDATimer(StatsTimer):
             end.record()
             # Waits for everything to finish running
             # Sync after record is right despite being counterintuitive
+            torch.cuda.synchronize()
+            self._save(label, start.elapsed_time(end))
+        else:
+            yield
+
+class CUDATimer(Timer):
+
+    def __init__(self, verbose=False, unit="s"):
+        assert torch.cuda.is_available(), "CUDA not available"
+        super().__init__( verbose=verbose, unit=unit)
+        self._factor /= 1e3  # CUDA Evants are measured in ms
+
+    @contextmanager
+    def __call__(self, label=""):
+        if self.enabled:
+            start = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            start.record()
+            yield
+            end.record()
             torch.cuda.synchronize()
             self._save(label, start.elapsed_time(end))
         else:
