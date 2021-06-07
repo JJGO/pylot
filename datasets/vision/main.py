@@ -4,7 +4,7 @@ import os
 from torchvision import transforms, datasets
 import PIL
 
-from .cache import IndexedImageDataset
+from ..cache import IndexedImageDataset
 
 _constructors = {
     "MNIST": datasets.MNIST,
@@ -207,3 +207,5 @@ def nanoImageNet(train=True, path=None):
 
     d = ImageNet(train=train, path=path)
     return subset_dataset(d, 10, 1000)
+
+

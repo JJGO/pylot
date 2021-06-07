@@ -8,11 +8,4 @@ from .path import dataset_path, DatapathMixin
 from .cache import IndexedImageFolder, IndexedDatasetFolder, IndexedImageDataset
 from .subset import subset_dataset
 from .selfsuper import SelfsuperDataset, self_supervised
-from .vision import (MNIST,
-                     CIFAR10,
-                     CIFAR100,
-                     ImageNet,
-                     Places365,
-                     TinyImageNet,
-                     Miniplaces,
-                     nanoImageNet)
+from .vision import *

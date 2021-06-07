@@ -40,8 +40,13 @@ def dataset_path(dataset, path=None):
 
 
 class DatapathMixin:
-
     @property
     def path(self):
-        return dataset_path(self.__class__.__name__)
+        root = getattr(self, "root", None)
+        if root:
+            return root
+        return dataset_path(self._folder_name, root)
 
+    @property
+    def _folder_name(self):
+        return self.__class__.__name__
