@@ -22,6 +22,10 @@ def separate_kwargs(kwargs, func):
     return func_kwargs, other_kwargs
 
 
+def get_default_kwargs(func):
+    return {k: v.default for k, v in inspect.signature(func).parameters.items() if v.default != inspect.Parameter.empty}
+
+
 # Taken from fastcore.foundation
 def delegates(to=None, keep=False, but=None):
     "Decorator: replace `**kwargs` in signature with params from `to`"
