@@ -1,3 +1,11 @@
 from .accuracy import accuracy, correct
 from .size import model_size
-from .dice import soft_dice, hard_dice
+
+from .segmentation import (
+    soft_dice_score,
+    soft_jaccard_score,
+    pixel_accuracy,
+    pixel_mse,
+    dice_score,
+    jaccard_score,
+)
