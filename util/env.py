@@ -10,6 +10,11 @@ from torch.utils.collect_env import get_env_info
 
 
 _EXCLUDES = [
+    "S3_HOST",
+    "S3_KEY",
+    "S3_SECRET",
+    "REDIS_URL",
+    "GIT_PAGER",
     "SSH_CLIENT",
     "SSH_CONNECTION",
     "SSH_TTY",
