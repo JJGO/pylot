@@ -33,9 +33,9 @@ def inplace_json(path, backup=False):
 @contextmanager
 def inplace_yaml(path, backup=False):
     with open(path, "r") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
+        data = yaml.safe_load(f)
     yield data
     if backup:
         _backup_file(path)
     with open(path, "w") as f:
-        yaml.dump(data, f, indent=2)
+        yaml.safe_dump(data, f, indent=2)

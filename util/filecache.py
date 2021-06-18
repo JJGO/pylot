@@ -7,7 +7,7 @@ import pandas as pd
 
 def load_yaml(path):
     with open(path, 'r') as f:
-        return yaml.load(f, Loader=yaml.FullLoader)
+        return yaml.safe_load(f)
 
 def load_json(path):
     with open(path, 'r') as f:
@@ -20,10 +20,14 @@ def load_txt(path):
     with open(path, 'r') as f:
         return f.read()
 
+def load_jsonl_df(path):
+    return pd.read_json(path, lines=True)
+
 Loaders = {
     '.yml': load_yaml,
     '.yaml': load_yaml,
     '.json': load_json,
+    '.jsonl': load_jsonl_df,
     '.csv': load_csv,
     '.txt': load_txt,
 }
