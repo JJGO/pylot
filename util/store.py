@@ -1,3 +1,4 @@
+import atexit
 import pathlib
 
 import h5py
@@ -10,6 +11,7 @@ class TensorStore:
     def __init__(self, path):
         self.datapath = pathlib.Path(path)
         self.hf = h5py.File(self.datapath, "a")
+        atexit(self.hf.close)
 
     def put(self, data, *args, force=True):
         path = "/".join(map(str, args))
