@@ -179,7 +179,7 @@ class StatsMeter(Meter):
         return StatsMeter.from_raw_values(self.n, self.mean * k, self.S * k**2)
 
     def asdict(self):
-        return {'mean': self.mean, 'std': self.std}  #, 'n': self.n}
+        return {'mean': self.mean, 'std': self.std, 'n': self.n}
 
 
 class MaxMinMeter(Meter):
