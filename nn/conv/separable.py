@@ -23,7 +23,7 @@ PointwiseConv2d = partial(nn.Conv2d, kernel_size=1)
 PointwiseConv3d = partial(nn.Conv3d, kernel_size=1)
 
 
-class DepthWiseSeparableConvND:
+class DepthWiseSeparableConvND(nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -35,8 +35,6 @@ class DepthWiseSeparableConvND:
         dilation: Union[int, Tuple[int, ...]] = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        device=None,
-        dtype=None,
     ) -> None:
         super().__init__()
 
@@ -45,7 +43,7 @@ class DepthWiseSeparableConvND:
         self.kernels_per_layer = kernels_per_layer
         self.mid_channels = in_channels * kernels_per_layer
         shared_conv_kwargs = dict(
-            bias=bias, padding_mode=padding_mode, device=device, dtype=dtype
+            bias=bias, padding_mode=padding_mode,
         )
 
         self.depthwise = self._conv_fn(
@@ -55,11 +53,17 @@ class DepthWiseSeparableConvND:
             stride=stride,
             padding=padding,
             dilation=dilation,
+            groups=in_channels,
             **shared_conv_kwargs
         )
         self.pointwise = self._conv_fn(
             self.mid_channels, out_channels, kernel_size=1, **shared_conv_kwargs
         )
+
+    def forward(self, input):
+        x = self.depthwise(input)
+        x = self.pointwise(x)
+        return x
 
     @property
     def kernel_size(self):
@@ -80,3 +84,15 @@ class DepthWiseSeparableConvND:
     @property
     def padding_mode(self):
         return self.depthwise.padding_mode
+
+
+class DepthWiseSeparableConv1d(DepthWiseSeparableConvND):
+    _conv_fn = nn.Conv1d
+
+
+class DepthWiseSeparableConv2d(DepthWiseSeparableConvND):
+    _conv_fn = nn.Conv2d
+
+
+class DepthWiseSeparableConv3d(DepthWiseSeparableConvND):
+    _conv_fn = nn.Conv3d
