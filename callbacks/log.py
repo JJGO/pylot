@@ -3,6 +3,8 @@ import time
 
 from torch import nn
 import numpy as np
+import pandas as pd
+from tabulate import tabulate
 
 
 def LogParameters(experiment, parameters):
@@ -21,7 +23,7 @@ def LogParameters(experiment, parameters):
 
 
 def TqdmParameters(experiment, parameters):
-    def TqdmParametersCallback(train, epoch, iteration, postfix):
+    def TqdmParametersCallback(phase, epoch, iteration, postfix):
         param_dict = {}
         for parameter in parameters:
             param = getattr(experiment.model, parameter)
@@ -38,14 +40,30 @@ def TqdmParameters(experiment, parameters):
 def PrintLogged(experiment):
     def PrintLoggedCallback(epoch):
         print(f"Logged @ Epoch {epoch}", flush=True)
-        csv = experiment.csvlogger
-        for c, v in zip(csv.columns, csv.values[-1]):
-            if isinstance(v, (int, float)):
-                print(f"{c:<20s}: {v:n}", flush=True)
-            else:
-                print(f"{c:<20s}: {v}", flush=True)
+        df = experiment.metrics_df
+        df = df[df.epoch == epoch].drop(columns=["epoch"])
+        dfp = pd.pivot(
+            pd.melt(df, id_vars="phase", var_name="metric"),
+            index="metric",
+            columns="phase",
+        )
+        dfp.columns = [x[1] for x in dfp.columns]
+        print(tabulate(dfp, headers="keys"), flush=True)
 
     return PrintLoggedCallback
+
+
+# def PrintLogged(experiment):
+#     def PrintLoggedCallback(epoch):
+#         print(f"Logged @ Epoch {epoch}", flush=True)
+#         csv = experiment.csvlogger
+#         for c, v in zip(csv.columns, csv.values[-1]):
+#             if isinstance(v, (int, float)):
+#                 print(f"{c:<20s}: {v:n}", flush=True)
+#             else:
+#                 print(f"{c:<20s}: {v}", flush=True)
+
+#     return PrintLoggedCallback
 
 
 class ETA:

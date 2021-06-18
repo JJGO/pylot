@@ -2,7 +2,8 @@ import json
 
 import pandas as pd
 
-from ..log import summary
+from ..util import S3Path
+from ..util.summary import summary
 
 
 def Summary(experiment, filename="summary.txt"):
@@ -14,8 +15,10 @@ def Summary(experiment, filename="summary.txt"):
 
     if not summary_path.exists():
 
-        with open(summary_path, "w") as f:
-            s = summary(experiment.model, x.shape[1:], echo=False, device=experiment.device)
+        with summary_path.open("w") as f:
+            s = summary(
+                experiment.model, x.shape[1:], echo=False, device=experiment.device
+            )
             print(s, file=f)
 
             print("\n\nOptim\n", file=f)
@@ -25,14 +28,19 @@ def Summary(experiment, filename="summary.txt"):
                 print("\n\nScheduler\n", file=f)
                 print(experiment.scheduler, file=f)
 
-        with open(summary_path.with_suffix(".json"), "w") as f:
+        with summary_path.with_suffix(".json").open("w") as f:
             s = summary(
-                experiment.model, x.shape[1:], echo=False, device=experiment.device, as_stats=True
+                experiment.model,
+                x.shape[1:],
+                echo=False,
+                device=experiment.device,
+                as_stats=True,
             )
             json.dump(s, f)
 
 
-def Topology(experiment, filename="topology"):
+def Topology(experiment, filename="topology", extension="pdf"):
+    assert extension in ("pdf", "svg")
     from torchviz import make_dot
 
     x, y = next(iter(experiment.train_dl))
@@ -41,17 +49,20 @@ def Topology(experiment, filename="topology"):
 
     # Save model topology
     topology_path = experiment.path / filename
-    topology_pdf_path = topology_path.with_suffix(".pdf")
+    topology_pdf_path = topology_path.with_suffix("." + extension)
 
     if not topology_pdf_path.exists():
 
         yhat = experiment.model(x)
         loss = experiment.loss_func(yhat, y)
         g = make_dot(loss)
-        # g.format = 'svg'
-        g.render(topology_path)
+        if extension == "svg":
+            g.format = "svg"
+        with S3Path.as_local(topology_path) as lf:
+            g.render(lf)
         # Interested in pdf, the graphviz file can be removed
-        topology_path.unlink()
+        if topology_path.exists():
+            topology_path.unlink()
 
 
 def ParameterTable(experiment, save=False):
@@ -78,9 +89,10 @@ def ParameterTable(experiment, save=False):
     console.print(table)
 
     if save:
-        columns = ['param', 'shape', 'numel', 'grad', 'dtype', 'device']
+        columns = ["param", "shape", "numel", "grad", "dtype", "device"]
         df = pd.DataFrame(data, columns=columns)
-        df.to_csv(experiment.path / 'params.csv', index=False)
+        with (experiment.path / "params.csv").open('w') as f:
+            df.to_csv(f, index=False)
 
 
 def ModuleTable(experiment, save=False):
@@ -103,6 +115,7 @@ def ModuleTable(experiment, save=False):
     console.print(table)
 
     if save:
-        columns = ['module', 'name']
+        columns = ["module", "name"]
         df = pd.DataFrame(data, columns=columns)
-        df.to_csv(experiment.path / 'params.csv', index=False)
+        with (experiment.path / "modules.csv").open('w') as f:
+            df.to_csv(f, index=False)

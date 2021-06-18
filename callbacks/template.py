@@ -34,13 +34,8 @@ class TemplateCallback:
         template = self.templateEnv.get_template(self._template + ".j2")
         self.data.epochs = epoch + 1
         html = template.render(**self.data.to_dict())
-        with open(self.output_path, "w") as f:
+        with self.output_path.open('w') as f:
             print(html, file=f)
-
-        if self.data_path.exists():
-            os.remove(self.data_path)
-            with open(f"{self.name}.json", "w") as f:
-                json.dump(self.data.to_dict(), f)
 
         return html
 
