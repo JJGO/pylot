@@ -1,4 +1,6 @@
 from collections import defaultdict
+import functools
+import inspect
 import json
 import pathlib
 
@@ -18,16 +20,16 @@ import torchvision.models
 from .base import Experiment
 from .util import any_getattr
 from ..datasets import stratified_train_val_split
-from ..log import summary
 from ..loss import flatten_loss
-from ..util import printc, StatsMeter, StatsTimer, StatsCUDATimer, allbut
-from ..scheduler import WarmupScheduler
+from ..util import printc, StatsMeter, StatsTimer, StatsCUDATimer, allbut, make_path
 from .. import callbacks
 from .. import datasets
 from .. import models
 from .. import optim
 from .. import loss as custom_loss
-from .. import scheduler as custom_scheduler
+from .. import metrics
+from ..optim import scheduler as custom_scheduler
+from ..optim.scheduler import WarmupScheduler
 
 
 class TrainExperiment(Experiment):
@@ -38,6 +40,7 @@ class TrainExperiment(Experiment):
     LOSS = [torch.nn, custom_loss]
     OPTIMS = [torch.optim, optim]
     SCHEDULERS = [lr_scheduler, custom_scheduler]
+    METRICS = [metrics]
 
     def __init__(self, cfg=None, **kwargs):
 
@@ -53,9 +56,12 @@ class TrainExperiment(Experiment):
         self.loss_func = None
         self.epochs = None
         self._epoch = None
+        self.setup_callbacks = None
         self.batch_callbacks = None
         self.epoch_callbacks = None
+        self.metric_fns = None
         self.device = None
+        self.checkpoint_freq = 1
 
         self.build_data(**self.cfg["data"])
         self.build_model(**self.cfg["model"])
@@ -86,7 +92,7 @@ class TrainExperiment(Experiment):
         self.train_dl = DataLoader(
             self.train_dataset, shuffle=True, **dataloader_kwargs
         )
-        self.val_dl = DataLoader(self.val_dataset, shuffle=False, **dataloader_kwargs)
+        self.val_dl = DataLoader(self.val_dataset, shuffle=True, **dataloader_kwargs)
         self.test_dl = DataLoader(self.test_dataset, shuffle=False, **dataloader_kwargs)
 
     def build_model(self, model, weights=None, **model_kwargs):
@@ -94,7 +100,8 @@ class TrainExperiment(Experiment):
         self.model = constructor(**model_kwargs)
 
         if weights is not None:
-            self.load_model(weights)
+            with make_path(weights).open("wb") as f:
+                self.load_model(torch.load(f))
 
     def build_loss(self, loss_func=None, flatten=False, **loss_kwargs):
         if loss_func is None and "loss" in loss_kwargs:
@@ -111,7 +118,10 @@ class TrainExperiment(Experiment):
             loss_kwargs["losses"] = losses
         loss_func = any_getattr(self.LOSS, loss_func)(**loss_kwargs)
         if flatten:
-            loss_func = flatten_loss(loss_func)
+            printc(
+                "WARN: flatten is deprecated. nn losses support N-D by default"
+                "custom losses should do the same or provide their own flatten"
+            )
 
         self.loss_func = loss_func
 
@@ -152,10 +162,8 @@ class TrainExperiment(Experiment):
             self.load_scheduler(scheduler_state)
 
     def _load_module(self, checkpoint, module, ignore_missing=False):
-        if isinstance(checkpoint, (str, pathlib.Path)):
-            checkpoint = pathlib.Path(checkpoint)
-            assert checkpoint.exists(), f"Checkpoint path {checkpoint} does not exist"
-            checkpoint = torch.load(checkpoint)
+        # assert checkpoint.exists(), f"Checkpoint path {checkpoint} does not exist"
+        # checkpoint = torch.load(checkpoint)
         if module == "model":
             getattr(self, module).load_state_dict(
                 checkpoint[f"{module}_state_dict"], strict=not ignore_missing
@@ -200,7 +208,8 @@ class TrainExperiment(Experiment):
         if self.scheduler is not None:
             state["scheduler_state_dict"] = self.scheduler.state_dict()
 
-        torch.save(state, self.checkpoint_path / checkpoint_file)
+        with (self.checkpoint_path / checkpoint_file).open("wb") as f:
+            torch.save(state, f)
 
     def load(self, tag=None):
         self.build_logging()
@@ -215,7 +224,8 @@ class TrainExperiment(Experiment):
     def reload(self, tag=None, ignore_missing=False):
         tag = tag if tag is not None else "last"
         checkpoint_file = f"{tag}.pt"
-        checkpoint = torch.load(self.checkpoint_path / checkpoint_file)
+        with (self.checkpoint_path / checkpoint_file).open("rb") as f:
+            checkpoint = torch.load(f)
         self._epoch = checkpoint["epoch"]
         self.load_model(checkpoint, ignore_missing=ignore_missing)
         self.load_optim(checkpoint)
@@ -225,8 +235,30 @@ class TrainExperiment(Experiment):
             f"Loaded checkpoint with tag:{tag}. Last epoch:{self._epoch}", color="BLUE"
         )
 
+    def build_metrics(self):
+
+        self.metric_fns = {}
+
+        for metric in self.get_param("log.metrics"):
+            if isinstance(metric, str):
+                f = any_getattr(self.METRICS, metric)
+            elif isinstance(metric, dict):
+                assert len(metric) == 1
+                metric, kwargs = next(iter(metric.items()))
+                f = any_getattr(self.METRICS, metric)
+                if inspect.isfunction(f):
+                    f = functools.partial(f, **kwargs)
+                else:
+                    f = f(**kwargs)
+            else:
+                raise TypeError(f"metric cannot be of type {type(metric)}")
+
+            self.metric_fns[metric] = f
+
     def build_logging(self):
         super().build_logging()
+
+        self.checkpoint_freq = self.get_param("log.checkpoint_freq", 1)
 
         # Callbacks
         if "log" in self.cfg:
@@ -240,10 +272,14 @@ class TrainExperiment(Experiment):
                         if isinstance(cb, str):
                             k, args = cb, {}
                         else:
+                            assert len(cb) == 1
                             k, args = next(iter(cb.items()))
                         callbacks.append(any_getattr(self.CALLBACKS, k)(self, **args))
 
                 setattr(self, category, callbacks)
+
+            if "metrics" in self.cfg["log"]:
+                self.build_metrics()
 
     def run_epochs(self, start=0, end=None):
         end = self.epochs if end is None else end
@@ -251,8 +287,8 @@ class TrainExperiment(Experiment):
             for epoch in range(start, end):
                 printc(f"Start epoch {epoch}", color="YELLOW")
                 self._epoch = epoch
-                self.checkpoint(tag="last")
-                self.log(epoch=epoch)
+                if epoch % self.checkpoint_freq == 0:
+                    self.checkpoint(tag="last")
                 self.train(epoch)
                 self.eval(epoch)
                 if self.scheduler:
@@ -262,36 +298,29 @@ class TrainExperiment(Experiment):
                     for cb in self.epoch_callbacks:
                         cb(epoch)
 
-                self.dump_logs()
-            self.test(epoch)
-            self.dump_logs()
+            self.test(end)
 
         except KeyboardInterrupt:
             printc(f"\nInterrupted at epoch {epoch}. Tearing Down", color="RED")
             self.checkpoint(tag="interrupt")
         self.checkpoint(tag="last")
 
-    def run_epoch(self, train, epoch=0, test=False):
-        self.before_epoch(train, epoch, test)
+    def run_epoch(self, phase, epoch=0):
         progress = self.get_param("log.progress", False)
         timing = self.get_param("log.timing", False)
-        if train:
+
+        dl = getattr(self, f"{phase}_dl")
+
+        grad_enabled = phase == "train"
+
+        if grad_enabled:
             self.model.train()
-            phase = "train"
-            dl = self.train_dl
         else:
             self.model.eval()
-            phase = "val"
-            dl = self.val_dl
-        if test:
-            assert not train, "Cannot train and test at the same time"
-            phase = "test"
-            dl = self.test_dl
 
         meters = defaultdict(StatsMeter)
         timercls = StatsCUDATimer if torch.cuda.is_available() else StatsTimer
         timer = timercls(unit="ms", skip=10)
-        epoch_timer = timercls(unit="ms")
         if not timing:
             timer.disable()
 
@@ -303,7 +332,9 @@ class TrainExperiment(Experiment):
             )
             epoch_iter = iter(epoch_progress)
 
-        with torch.set_grad_enabled(train), epoch_timer("t_epoch"):
+        self.before_epoch(phase, epoch)
+
+        with torch.set_grad_enabled(grad_enabled):
             for i in range(len(dl)):
                 self.before_batch(phase, epoch, i)
                 with timer("t_data"):
@@ -312,7 +343,7 @@ class TrainExperiment(Experiment):
                 with timer("t_forward"):
                     yhat = self.model(x)
                     loss = self.loss_func(yhat, y)
-                if train:
+                if phase == "train":
                     with timer("t_backward"):
                         loss.backward()
                     with timer("t_optim"):
@@ -325,27 +356,38 @@ class TrainExperiment(Experiment):
                             self.optim.step()
                             self.optim.zero_grad()
 
-                meters[f"{phase}_loss"].add(loss.item())
+                meters["loss"].add(loss.item())
                 self.compute_metrics(phase, meters, loss, y, yhat)
 
                 postfix = {k: v.mean for k, v in meters.items()}
 
                 for cb in self.batch_callbacks:
-                    cb(train, epoch, i, postfix)
+                    cb(phase, epoch, i, postfix)
 
                 if progress:
                     epoch_progress.set_postfix(postfix)
 
                 self.after_batch(phase, epoch, i)
 
-        if train:
-            self.log(lr=self.optim.param_groups[0]["lr"])
-            if timing:
-                self.log(timer.measurements)
-                self.log(epoch_timer.measurements)
+        metrics = {k: v.mean for k, v in meters.items()}
 
-        self.log(meters)
-        self.after_epoch(train, epoch, test)
+        if phase == "train":
+            metrics["lr"] = self.optim.param_groups[0]["lr"]
+            if timing:
+                for k, t in timer.measurements:
+                    metrics[f"{k}_mean"] = t.mean
+                    metrics[f"{k}_std"] = t.std
+
+        self.save_metrics(epoch=epoch, phase=phase, **metrics)
+        self.after_epoch(phase, epoch)
+
+    def compute_metrics(self, phase, meters, loss, y, yhat):
+        if self.metric_fns:
+            for name, f in self.metric_fns.items():
+                val = f(yhat, y)
+                if isinstance(val, torch.Tensor):
+                    val = val.item()
+                meters[name].add(val)
 
     def before_batch(self, phase, epoch, iteration):
         pass
@@ -353,23 +395,20 @@ class TrainExperiment(Experiment):
     def after_batch(self, phase, epoch, iteration):
         pass
 
-    def before_epoch(self, train, epoch, test):
+    def before_epoch(self, phase, epoch):
         pass
 
-    def after_epoch(self, train, epoch, test):
-        pass
-
-    def compute_metrics(self, phase, meters, loss, y, yhat):
+    def after_epoch(self, phase, epoch):
         pass
 
     def train(self, epoch=0):
-        return self.run_epoch(True, epoch)
+        return self.run_epoch("train", epoch)
 
     def eval(self, epoch=0):
-        return self.run_epoch(False, epoch)
+        return self.run_epoch("val", epoch)
 
     def test(self, epoch=0):
-        return self.run_epoch(False, epoch, test=True)
+        return self.run_epoch("test", epoch)
 
     def run(self, resume=False):
         if not resume:

@@ -7,8 +7,7 @@ from ..metrics import correct
 
 
 class VisionClassificationTrainExperiment(TrainExperiment):
-    """Vision Classification TrainExperiment
-    """
+    """Vision Classification TrainExperiment"""
 
     def build_model(self, model, **model_kwargs):
         # Replace classifier layer (i.e. pre-softmax)
@@ -21,10 +20,11 @@ class VisionClassificationTrainExperiment(TrainExperiment):
         assert clf.out_features == self.dataset.n_classes
 
     def compute_metrics(self, phase, meters, loss, y, yhat):
+        super().compute_metrics(phase, meters, loss, y, yhat)
         c1, c5 = correct(yhat, y, (1, 5))
         batch_size = getattr(self, f"{phase}_dl").batch_size
-        meters[f"{phase}_acc1"].add(c1 / batch_size)
-        meters[f"{phase}_acc5"].add(c5 / batch_size)
+        meters["acc1"].add(c1 / batch_size)
+        meters["acc5"].add(c5 / batch_size)
 
     def build_data(self, **kwargs):
         # Ensure validation set is not augmented
