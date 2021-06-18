@@ -17,7 +17,7 @@ class PascalVOC2012(Dataset, DatapathMixin):
     http://host.robots.ox.ac.uk/pascal/VOC/voc2012/
     """
 
-    MODES = ("seg1", "seg20")  # , "detect")
+    MODES = ("seg20",)  # , "detect")
     MEAN_CH = (0.457, 0.443, 0.407)
     STD_CH = (0.273, 0.269, 0.285)
 
@@ -86,7 +86,11 @@ class PascalVOC2012(Dataset, DatapathMixin):
             augment = self.transform(image=image, mask=label)
             image, label = augment["image"], augment["mask"].long()
             if self.onehot:
-                label = F.one_hot(label, num_classes=self.n_classes).permute((2, 0, 1))
+                label = (
+                    F.one_hot(label, num_classes=self.n_classes)
+                    .permute((2, 0, 1))
+                    .float()
+                )
         return image, label
 
     @property
@@ -120,3 +124,30 @@ class PascalVOC2012(Dataset, DatapathMixin):
         d = {i: l for i, l in enumerate(self.labels)}
         d[255] = "__void__"
         return d
+
+    @property
+    def palette(self):
+        VOC_COLORMAP = [
+            [0, 0, 0],
+            [128, 0, 0],
+            [0, 128, 0],
+            [128, 128, 0],
+            [0, 0, 128],
+            [128, 0, 128],
+            [0, 128, 128],
+            [128, 128, 128],
+            [64, 0, 0],
+            [192, 0, 0],
+            [64, 128, 0],
+            [192, 128, 0],
+            [64, 0, 128],
+            [192, 0, 128],
+            [64, 128, 128],
+            [192, 128, 128],
+            [0, 64, 0],
+            [128, 64, 0],
+            [0, 192, 0],
+            [128, 192, 0],
+            [0, 64, 128],
+        ]
+        return np.array(VOC_COLORMAP)

@@ -112,6 +112,7 @@ class CUBBirds(Dataset, DatapathMixin):
             if self.preproc:
                 augment = self.transform(image=image, mask=label)
                 image, label = augment["image"], augment["mask"]
+                label = label[None, ...].float()
 
         return image, label
 
@@ -129,7 +130,7 @@ class CUBBirds(Dataset, DatapathMixin):
 
         seg = Image.open(
             (self.path / "segmentations" / self._files[i]).with_suffix(".png")
-        )
+        ).convert("L")
         # return seg
         mask = np.array(seg, dtype=np.uint8) // 51
         mask[mask < 3] = 0

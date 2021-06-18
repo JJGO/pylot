@@ -103,7 +103,7 @@ class OxfordPets(Dataset, DatapathMixin):
         self.transform = A.Compose(transforms)
 
     def __len__(self):
-        return len(self.files)
+        return len(self._files)
 
     def __getitem__(self, index):
         image = self._get_image(index)
@@ -117,9 +117,14 @@ class OxfordPets(Dataset, DatapathMixin):
             if self.preproc:
                 augment = self.transform(image=image, mask=label)
                 image, label = augment["image"], augment["mask"].long()
+                if self.mode == "seg1":
+                    # Dummy dimension for BCE(WithLogits)Loss or volumetrics losses
+                    label = label[None, ...].float()
                 if self.onehot:
-                    label = F.one_hot(label, num_classes=self.n_classes).permute(
-                        (2, 0, 1)
+                    label = (
+                        F.one_hot(label, num_classes=self.n_classes)
+                        .permute((2, 0, 1))
+                        .float()
                     )
 
         return image, label
