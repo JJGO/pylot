@@ -3,3 +3,4 @@ from .view import View
 from .vae import VAE
 from .hooks import HookedModule
 from .util import num_params
+from .conv import *

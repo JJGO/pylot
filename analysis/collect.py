@@ -85,7 +85,9 @@ class ResultsLoader:
             if cfg is None:
                 continue
 
-            cfg = delete_with_prefix(expand_keys(cfg), "log")
+            # cfg = delete_with_prefix(expand_keys(cfg), "log")
+            cfg.pop("log", None)
+            cfg = expand_keys(cfg)
 
             for c in columns:
                 val = cfg.get(c, None)
@@ -113,9 +115,7 @@ class ResultsLoader:
             df = df.to_categories()
         return df
 
-    def load_logs(
-        self, *paths, shorthand=True, dedup=False, metadata=False, df=None, std=False
-    ):
+    def load_logs(self, *paths, shorthand=True, dedup=False, metadata=False, df=None):
         if len(paths) > 0:
             df = self.load_configs(
                 *paths, shorthand=True, dedup=dedup, metadata=metadata
@@ -125,12 +125,10 @@ class ResultsLoader:
 
         for _, row in tqdm(df.iterrows(), total=len(df), leave=False):
             path = row["path"] if shorthand else row["experiment.path"]
-            log_df = self.filecache.get(path / "logs.csv")
+            log_df = self.filecache.get(path / "metrics.jsonl")
             if log_df is None:
                 continue
 
-            if not std:
-                drop_std(log_df)
             log_df.rename(columns={c: f"log.{c}" for c in log_df.columns}, inplace=True)
             log_df["path"] = path
 
@@ -174,19 +172,21 @@ class ResultsLoader:
             if c.startswith("t_"):  # Timing, mean
                 _agg_fns[c] = "mean"
             elif "loss" in c:  # Min loss
-                _agg_fns[c] = ["min", "mean"]
+                _agg_fns[c] = ["min"]
             elif "acc" in c:  # Accuracy, max
-                _agg_fns[c] = ["max", "mean"]
+                _agg_fns[c] = ["max"]
             elif "err" in c:  # Error, min
-                _agg_fns[c] = ["min", "mean"]
+                _agg_fns[c] = ["min"]
             elif "epoch" in c:
                 _agg_fns[c] = "max"
+            elif "score" in c:
+                _agg_fns[c] = ["max"]
 
         if agg is not None:
             _agg_fns.update(agg)
 
         # g = "path" if shorthand else "experiment.path"
-        g = df.attrs["exp_cols"]
+        g = df.attrs["exp_cols"] + ["phase"] if "phase" in df.attrs["log_cols"] else []
         agg_df = df.groupby(g, as_index=False, dropna=False, observed=True).agg(
             _agg_fns
         )
@@ -199,6 +199,30 @@ class ResultsLoader:
         agg_df.attrs = df.attrs
         agg_df.attrs["log_cols"] = [c for c in agg_df.columns if c not in g]
         return agg_df
+
+    def load_all(
+        self,
+        *paths,
+        shorthand=True,
+        dedup=False,
+        metadata=False,
+        categories=False,
+        **selector,
+    ):
+        dfc = self.load_configs(
+            *paths,
+            shorthand=shorthand,
+            dedup=dedup,
+            metadata=metadata,
+            categories=categories,
+        )
+        from .. import pandas
+
+        dfc = dfc.select(**selector)
+        df = self.load_logs(df=dfc)
+        dfa = self.load_agg_logs(df=df)
+
+        return dfc, df, dfa
 
 
 def merge_std(df):

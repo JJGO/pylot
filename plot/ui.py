@@ -12,7 +12,7 @@ import io
 import matplotlib.pyplot as plt
 from IPython.display import clear_output, display, HTML
 
-from ..ui import disable_widget_scroll, widget_dark_mode
+from ..util.jupyter import disable_widget_scroll, widget_dark_mode
 
 
 class PlotUI:
