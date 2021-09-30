@@ -9,6 +9,20 @@ import sys
 from torch.utils.collect_env import get_env_info
 
 
+def get_size(bytes, suffix="B"):
+    """
+    Scale bytes to its proper format
+    e.g:
+        1253656 => '1.20MB'
+        1253656678 => '1.17GB'
+    """
+    factor = 1024
+    for unit in ["", "K", "M", "G", "T", "P"]:
+        if bytes < factor:
+            return f"{bytes:.2f}{unit}{suffix}"
+        bytes /= factor
+
+
 _EXCLUDES = [
     "S3_HOST",
     "S3_KEY",
@@ -113,7 +127,8 @@ _EXCLUDES = [
 
 def info_system():
     return {
-        "OS": platform.system(),
+        "system": platform.system(),
+        "release": platform.release(),
         "architecture": "".join(platform.architecture()),
         "version": platform.version(),
         "processor": platform.processor(),
@@ -123,13 +138,29 @@ def info_system():
 
 
 def get_hardware_info():
+    # https://www.thepythoncode.com/article/get-hardware-system-information-python
     hw = {}
-    # Get CPU info
-    with open("/proc/cpuinfo", "r") as f:
-        cpus = [l.split(":")[1].strip() for l in f.readlines() if "model name" in l]
-        hw["cpus"] = dict(Counter(cpus))
 
-    hw["ram"] = str(round(psutil.virtual_memory().total / (1024.0 ** 3))) + " GB"
+    cpu = {}
+    cpu["physical_cores"] = str(psutil.cpu_count(logical=False))
+    cpu["total_cores"] = str(psutil.cpu_count(logical=True))
+
+    cpufreq = psutil.cpu_freq()
+    cpu["freq_max"] = f"{cpufreq.max/1000:.2f}GHz"
+    cpu["freq_min"] = f"{cpufreq.min/1000:.2f}GHz"
+    cpu["freq_current"] = f"{cpufreq.current/1000:.2f}GHz"
+    # cpu["usages"] = list(psutil.cpu_percent(percpu=True, interval=1))
+    cpu["percent"] = f"{psutil.cpu_percent()}%"
+
+    hw["cpu"] = cpu
+
+    svmem = psutil.virtual_memory()
+    memory = {}
+    memory["total"] = get_size(svmem.total)
+    memory["available"] = get_size(svmem.available)
+    memory["used"] = get_size(svmem.used)
+    memory["percent"] = str(svmem.percent) + "%"
+    hw["memory"] = memory
     return hw
 
 
@@ -168,10 +199,10 @@ def get_full_env_info():
     for k in _EXCLUDES:
         environ.pop(k, None)
 
-    # hw = get_hardware_info()
+    hw = get_hardware_info()
     when = dict(
         timestamp=time.time(),
-        date=datetime.astimezone(datetime.now()),
+        date=datetime.now().astimezone().replace(microsecond=0).isoformat(),
     )
 
-    return dict(sys=system_env, python=pytorch_env, os=environ, when=when)
+    return dict(sys=system_env, python=pytorch_env, environ=environ, when=when, hw=hw)
