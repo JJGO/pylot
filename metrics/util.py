@@ -118,6 +118,10 @@ def _metric_reduction(
     ignore_index: Optional[int] = None,
 ) -> Tensor:
 
+    assert (
+        weights is None or ignore_index is None
+    ), "When setting weights, do not include ignore_index separately"
+
     if ignore_index is not None:
         weights = [1.0 if i != ignore_index else 0.0 for i in range(len(loss))]
 
@@ -130,14 +134,17 @@ def _metric_reduction(
             weights = torch.Tensor(weights)
         loss *= weights.type(loss.dtype).to(loss.device)
 
+    N = len(loss)
+    if ignore_index and 0 <= ignore_index < N:
+        N -= 1
     if reduction is None:
         return loss
     if reduction == "mean":
-        return loss.mean()
+        return loss.sum() / N
     if reduction == "sum":
         return loss.sum()
     if reduction == "batchwise_mean":
-        return loss.mean(dim=0)
+        return loss.sum(dim=0) / N
 
 
 def batch_channel_flatten(x: Tensor) -> Tensor:
