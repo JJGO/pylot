@@ -135,7 +135,7 @@ def broadcast(df: DataFrame, col, to=None, concat=True, **when):
 
 
 @register_dataframe_method
-def unique_per_col(df: DataFrame, threshold: float = 0.15, constant=False, display=True):
+def unique_per_col(df: DataFrame, threshold: float = 0.5, constant=False, display=True):
     low = 0 if constant else 1
     uniqs = []
     with pd.option_context("display.max_colwidth", 400):
@@ -154,3 +154,13 @@ def unique_per_col(df: DataFrame, threshold: float = 0.15, constant=False, displ
 
 def df_from_dict(d):
     return DataFrame.from_dict(d, orient="index", columns=[""])
+
+
+@register_dataframe_method
+def constants_subset(df: DataFrame, **selector):
+    # Returns variables that are constant in the selected subset
+    # while leaving out aspects that are constant for the entire
+    # dataset
+    sub_df = df.select(**selector)
+    sub_constants = sub_df.constants()
+    return sub_constants[~sub_constants.index.isin(set(df.constants().index))]
