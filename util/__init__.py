@@ -23,3 +23,5 @@ from .jupyter import notebook_put_into_clipboard, jupyter_width
 from .edit import inplace_json, inplace_pandas_csv, inplace_yaml
 from .jsonutils import NumpyEncoder, is_jsonable
 from .s3 import S3Path, make_path
+from .device import to_device
+from .metrics import MetricsStore, MetricsDict
