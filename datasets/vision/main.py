@@ -89,7 +89,7 @@ def MNIST(train=True, path=None, norm=False, augmentation=False, augment_kw=None
         translate=(0.05, 0.05),
         scale=(0.9, 1.0),
         shear=(5, 5),
-        resample=PIL.Image.BILINEAR,
+        interpolation=PIL.Image.BILINEAR,
     )
     if augment_kw:
         augment_kwargs.update(augment_kw)
@@ -207,5 +207,3 @@ def nanoImageNet(train=True, path=None):
 
     d = ImageNet(train=train, path=path)
     return subset_dataset(d, 10, 1000)
-
-
