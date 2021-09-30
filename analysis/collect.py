@@ -63,6 +63,7 @@ def list2tuple(val):
 class ResultsLoader:
     def __init__(self, cache_file="/tmp/pylot-results.cache"):
         self.filecache = FileCache(cache_file)
+        self.load_metrics = self.load_logs
 
     def load_configs(
         self, *paths, shorthand=True, dedup=False, metadata=False, categories=False
@@ -115,7 +116,15 @@ class ResultsLoader:
             df = df.to_categories()
         return df
 
-    def load_logs(self, *paths, shorthand=True, dedup=False, metadata=False, df=None):
+    def load_logs(
+        self,
+        *paths,
+        shorthand=True,
+        dedup=False,
+        metadata=False,
+        df=None,
+        file="metrics",
+    ):
         if len(paths) > 0:
             df = self.load_configs(
                 *paths, shorthand=True, dedup=dedup, metadata=metadata
@@ -125,7 +134,7 @@ class ResultsLoader:
 
         for _, row in tqdm(df.iterrows(), total=len(df), leave=False):
             path = row["path"] if shorthand else row["experiment.path"]
-            log_df = self.filecache.get(path / "metrics.jsonl")
+            log_df = self.filecache.get(path / f"{file}.jsonl")
             if log_df is None:
                 continue
 
