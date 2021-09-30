@@ -20,7 +20,6 @@ import torchvision.models
 
 
 from .base import Experiment
-from .util import any_getattr
 from ..datasets import stratified_train_val_split
 from ..loss import flatten_loss
 from ..util import (
@@ -31,6 +30,7 @@ from ..util import (
     allbut,
     make_path,
     to_device,
+    any_getattr
 )
 from .. import callbacks
 from .. import datasets

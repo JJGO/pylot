@@ -25,3 +25,4 @@ from .jsonutils import NumpyEncoder, is_jsonable
 from .s3 import S3Path, make_path
 from .device import to_device
 from .metrics import MetricsStore, MetricsDict
+from .modules import any_getattr
