@@ -19,8 +19,9 @@ class VisionClassificationTrainExperiment(TrainExperiment):
         clf = get_classifier_module(self.model)
         assert clf.out_features == self.dataset.n_classes
 
-    def compute_metrics(self, phase, meters, loss, y, yhat):
-        super().compute_metrics(phase, meters, loss, y, yhat)
+    def compute_metrics(self, phase, meters, outputs):
+        super().compute_metrics(phase, meters, outputs)
+        loss, y, yhat = outputs["loss"], outputs["y"], outputs["yhat"]
         c1, c5 = correct(yhat, y, (1, 5))
         batch_size = getattr(self, f"{phase}_dl").batch_size
         meters["acc1"].add(c1 / batch_size)
