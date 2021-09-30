@@ -1,36 +1,33 @@
-import atexit
 import pathlib
 
-import h5py
 import numpy as np
 from torch import Tensor
-from PIL import Image
+import zarr
+import zarr.hierarchy
+import zarr.core
 
 
 class TensorStore:
     def __init__(self, path):
         self.datapath = pathlib.Path(path)
-        self.hf = h5py.File(self.datapath, "a")
-        atexit(self.hf.close)
+        self.root = zarr.open(str(self.datapath), mode="a")
 
     def put(self, data, *args, force=True):
         path = "/".join(map(str, args))
-        if path in self.hf:
-            del self.hf[path]
+        if path in self.root:
+            del self.root[path]
         self[path] = data
 
-    def __setitem__(self, path, data):
+    def __setitem__(self, path, data, force=False):
+
+        if force and path in self.root:
+            del self.root[path]
 
         if isinstance(data, Tensor):
             data = data.detach().cpu().numpy()
 
         if isinstance(data, np.ndarray):
-            self.hf.create_dataset(path, data=data)
-            return
-
-        if isinstance(data, Image.Image):
-            self.hf.create_dataset(path, data=np.array(data))
-            self.hf[path].attrs["type"] = "Image"
+            self.root.create_dataset(path, data=data)
             return
 
         # TODO: add support for dataframes
@@ -41,7 +38,7 @@ class TensorStore:
         if isinstance(data, list):
             for i, x in enumerate(data):
                 self.put(x, path, i)
-            self.hf["path"].attrs["type"] = "list"
+            self.root["path"].attrs["type"] = "list"
             return
 
         if isinstance(data, dict):
@@ -58,25 +55,20 @@ class TensorStore:
     def __getitem__(self, path):
 
         if path != "":
-            x = self.hf[path]
+            x = self.root[path]
         else:
-            x = self.hf
+            x = self.root
 
         type_ = x.attrs.get("type", None)
 
-        if isinstance(x, h5py.Dataset):
-            if type_ == "Image":
-                return Image.fromarray(x[()])
-            return x[()]
-
         if type_ == "list":
-            return [self.get(path, i) for i in range(len(self.hf))]
+            return [self.get(path, i) for i in range(len(self.root))]
 
-        return {k: self.get(path, k) for k in x}
-
-    def __del__(self):
-        if hasattr(self, "hf"):
-            self.hf.close()
+        if isinstance(x, zarr.hierarchy.Group):
+            return {k: self.get(path, k) for k in x}
+        if isinstance(x, zarr.core.Array):
+            return x[:]
 
     def tree(self):
-        self.hf.visit(print)
+        # self.root.visit(print)
+        return self.root.tree()
