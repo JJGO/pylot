@@ -9,6 +9,7 @@ Created on 2019-08-22 09:37:36
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 
 turbo_colormap_data = np.array(
     [
@@ -293,12 +294,16 @@ def RGBToPyCmap(rgbdata):
 
 
 mpl_data = RGBToPyCmap(turbo_colormap_data)
-plt.register_cmap(name="turbo", data=mpl_data, lut=turbo_colormap_data.shape[0])
+plt.register_cmap(
+    cmap=LinearSegmentedColormap("turbo", mpl_data, turbo_colormap_data.shape[0])
+)
 
 mpl_data_r = RGBToPyCmap(turbo_colormap_data[::-1, :])
-plt.register_cmap(name="turbo_r", data=mpl_data_r, lut=turbo_colormap_data.shape[0])
+plt.register_cmap(
+    cmap=LinearSegmentedColormap("turbo_r", mpl_data_r, turbo_colormap_data.shape[0])
+)
 
-Turbo = plt.get_cmap('turbo')
+Turbo = plt.get_cmap("turbo")
 
 if __name__ == "__main__":
 
