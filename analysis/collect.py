@@ -168,6 +168,53 @@ class ResultsLoader:
 
         return full_df
 
+    def load_parquets(
+        self,
+        file,
+        df,
+        prefix=None,
+        shorthand=True,
+        skip=False,
+        copy_cols=('path',),
+    ):
+
+        dfxs = []
+
+        for _, row in tqdm(df.iterrows(), total=len(df), leave=False):
+            path = row["path"] if shorthand else row["experiment.path"]
+            if skip and not (path / f"{file}.parquet").exists():
+                continue
+            dfx = pd.read_parquet(path / f"{file}.parquet")
+
+            if prefix:
+                dfx.rename(
+                    columns={c: f"{prefix}.{c}" for c in dfx.columns}, inplace=True
+                )
+
+            if copy_cols is not None:
+                for c in copy_cols:
+                    v = row[c]
+                    if v is None or isinstance(v, (str, float, int, pathlib.Path)):
+                        dfx[c] = v
+                    else:
+                        dfx[c] = [v for _ in range(len(dfx))]
+
+            # for k, v in row.items():
+            #     if v is None or isinstance(v, (str, float, int)):
+            #         dfx[k] = v
+                # dfx[k] = [v for _ in range(len(dfx))]
+
+            # Merge is slow
+            # dfx = pd.merge(
+            #     row.to_frame().transpose(), dfx, on="path", suffixes=("", "_data")
+            # )
+            dfxs.append(dfx)
+
+        full_df = pd.concat(dfxs, ignore_index=True)
+        # full_df = pd.merge(df, full_df, on='path', suffixes=('', "_data"))
+
+        return full_df
+
     def load_agg_logs(
         self, *paths, agg=None, shorthand=True, dedup=False, metadata=False, df=None
     ):
