@@ -59,6 +59,7 @@ class TrainExperiment(Experiment):
         self.setup_callbacks = None
         self.batch_callbacks = None
         self.epoch_callbacks = None
+        self.wrapup_callbacks = None
         self.metric_fns = None
         self.device = None
         self.checkpoint_freq = 1
@@ -263,7 +264,7 @@ class TrainExperiment(Experiment):
         # Callbacks
         if "log" in self.cfg:
 
-            for category in ["setup", "batch", "epoch"]:
+            for category in ["setup", "batch", "epoch", "wrapup"]:
                 category = f"{category}_callbacks"
                 callbacks = []
                 if category in self.cfg["log"]:
@@ -299,6 +300,11 @@ class TrainExperiment(Experiment):
                         cb(epoch)
 
             self.test(end)
+
+            for cb in self.wrapup_callbacks:
+                cb()
+
+            self.checkpoint(tag="last")
 
         except KeyboardInterrupt:
             printc(f"\nInterrupted at epoch {epoch}. Tearing Down", color="RED")
