@@ -9,3 +9,5 @@ from .segmentation import (
     dice_score,
     jaccard_score,
 )
+
+from .model import module_table, parameter_table
