@@ -1,8 +1,10 @@
+import copy
 from collections import defaultdict
 import functools
 import inspect
 import json
 import pathlib
+import sys
 
 from tqdm import tqdm
 import yaml
@@ -309,7 +311,7 @@ class TrainExperiment(Experiment):
         except KeyboardInterrupt:
             printc(f"\nInterrupted at epoch {epoch}. Tearing Down", color="RED")
             self.checkpoint(tag="interrupt")
-        self.checkpoint(tag="last")
+            sys.exit(1)
 
     def run_epoch(self, phase, epoch=0):
         progress = self.get_param("log.progress", False)
