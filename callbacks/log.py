@@ -40,7 +40,7 @@ def TqdmParameters(experiment, parameters):
 def PrintLogged(experiment):
     def PrintLoggedCallback(epoch):
         print(f"Logged @ Epoch {epoch}", flush=True)
-        df = experiment.metrics_df
+        df = experiment.metrics.df
         df = df[df.epoch == epoch].drop(columns=["epoch"])
         dfp = pd.pivot(
             pd.melt(df, id_vars="phase", var_name="metric"),

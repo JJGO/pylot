@@ -15,7 +15,18 @@ import yaml
 
 import pandas as pd
 
-from ..util import dict_recursive_update, expand_dots, allbut, get_full_env_info, make_path, S3Path, printc
+from ..util import (
+    dict_recursive_update,
+    expand_dots,
+    allbut,
+    get_full_env_info,
+    make_path,
+    S3Path,
+    printc,
+    TensorStore,
+    MetricsStore,
+    MetricsDict,
+)
 from .util import fix_seed
 
 
@@ -37,7 +48,8 @@ class Experiment:
 
         fix_seed(self.cfg["experiment"]["seed"])
         # signal.signal(signal.SIGINT, self.SIGINT_handler)
-        signal.signal(signal.SIGQUIT, self.SIGQUIT_handler)
+        # signal.signal(signal.SIGQUIT, self.SIGQUIT_handler)
+        self.metricsd = MetricsDict(self.path)
 
     def _init_new(self, cfg, uid=None, **kwargs):
 
@@ -55,7 +67,7 @@ class Experiment:
             uid = self.generate_uid()
         self.uid = uid
 
-        root = self.get_param('log.root', '.')
+        root = self.get_param("log.root", ".")
         root = make_path(root)
         self.path = root / self.uid
 
@@ -63,14 +75,14 @@ class Experiment:
         existing_cfg = pathlib.Path(path) / "config.yml"
         assert existing_cfg.exists(), "Cannot find config.yml under the provided path"
         self.path = pathlib.Path(path)
-        with (self.path / 'config.yml').open('r') as f:
+        with (self.path / "config.yml").open("r") as f:
             self.cfg = yaml.safe_load(f)
         self.uid = self.path.stem
 
     def save_config(self):
         self.path.mkdir(exist_ok=True, parents=True)
         path = self.path / "config.yml"
-        with path.open('w') as f:
+        with path.open("w") as f:
             yaml.safe_dump(self.cfg, f, indent=2)
 
     @property
@@ -107,14 +119,13 @@ class Experiment:
         # printc(f"Logging results to {self.path}", color="MAGENTA")
         print(f"{self.path}")
 
-        # self.csvlogger = MeterCSVLogger(self.logs_path)
-        # self.tensor_store = TensorStore(self.path / "store.hdf5")
+        self.tensor_store = TensorStore(self.path / "store.zarr")
 
         # Save environment for repro
         envinfo_path = self.path / "env.yml"
         if not envinfo_path.exists():
             envinfo_path.touch()
-        with envinfo_path.open('a') as f:
+        with envinfo_path.open("a") as f:
             yaml.safe_dump([get_full_env_info()], f)
 
         self.save_config()
@@ -162,32 +173,36 @@ class Experiment:
         return mapping
 
     @property
-    def metrics_path(self):
-        return self.path / "metrics.jsonl"
-
-    def save_metrics(self, **metrics):
-
-        # Save as JSONL file
-        with self.metrics_path.open('a') as f:
-            print(json.dumps(metrics), file=f)
-
-    def batch_save_metrics(self, metrics):
-
-        with self.metrics_path.open("a") as f:
-            for metric in metrics:
-                print(json.dumps(metric), file=f)
-
-    @property
     def metrics(self):
-        if self.metrics_path.exists():
-            with self.metrics_path.open('r') as f:
-                return [json.loads(line) for line in f.readlines()]
+        return self.metricsd['metrics']
 
-    @property
-    def metrics_df(self):
-        if self.metrics_path.exists():
-            with self.metrics_path.open('r') as f:
-                return pd.read_json(f, lines=True)
+    # @property
+    # def metrics_path(self):
+    #     return self.path / "metrics.jsonl"
+
+    # def save_metrics(self, **metrics):
+
+    #     # Save as JSONL file
+    #     with self.metrics_path.open('a') as f:
+    #         print(json.dumps(metrics), file=f)
+
+    # def batch_save_metrics(self, metrics):
+
+    #     with self.metrics_path.open("a") as f:
+    #         for metric in metrics:
+    #             print(json.dumps(metric), file=f)
+
+    # @property
+    # def metrics(self):
+    #     if self.metrics_path.exists():
+    #         with self.metrics_path.open('r') as f:
+    #             return [json.loads(line) for line in f.readlines()]
+
+    # @property
+    # def metrics_df(self):
+    #     if self.metrics_path.exists():
+    #         with self.metrics_path.open('r') as f:
+    #             return pd.read_json(f, lines=True)
 
     # LOGS API IS DEPRECATED IN FAVOR OF THE METRICS API
 
