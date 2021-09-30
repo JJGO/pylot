@@ -23,7 +23,15 @@ from .base import Experiment
 from .util import any_getattr
 from ..datasets import stratified_train_val_split
 from ..loss import flatten_loss
-from ..util import printc, StatsMeter, StatsTimer, StatsCUDATimer, allbut, make_path
+from ..util import (
+    printc,
+    StatsMeter,
+    StatsTimer,
+    StatsCUDATimer,
+    allbut,
+    make_path,
+    to_device,
+)
 from .. import callbacks
 from .. import datasets
 from .. import models
@@ -68,7 +76,10 @@ class TrainExperiment(Experiment):
 
         self.build_data(**self.cfg["data"])
         self.build_model(**self.cfg["model"])
-        self.build_loss(**self.cfg["loss"])
+        if "loss" in self.cfg:
+            self.build_loss(**self.cfg["loss"])
+        if "losses" in self.cfg:
+            self.build_losses(**self.cfg["losses"])
         self.build_train(**self.cfg["train"])
 
     def build_data(self, dataset, val_split=None, **data_kwargs):
@@ -106,13 +117,17 @@ class TrainExperiment(Experiment):
             with make_path(weights).open("wb") as f:
                 self.load_model(torch.load(f))
 
-    def build_loss(self, loss_func=None, flatten=False, **loss_kwargs):
-        if loss_func is None and "loss" in loss_kwargs:
-            loss_func = loss_kwargs.pop("loss")
-            printc(
-                "WARN: loss.loss is deprecated, please use loss.loss_func",
-                color="ORANGE",
-            )
+            with make_path(weights).open("rb") as f:
+                self.load_model(
+                    torch.load(
+                        f,
+                        map_location=(
+                            None if torch.cuda.is_available() else torch.device("cpu")
+                        ),
+                    )
+                )
+
+    def build_loss(self, loss_func=None, **loss_kwargs):
         if loss_func == "MultiLoss":
             losses = []
             for sub_loss in loss_kwargs["losses"]:
@@ -120,13 +135,17 @@ class TrainExperiment(Experiment):
                 losses.append(any_getattr(self.LOSS, sub_loss_func)(**sub_loss))
             loss_kwargs["losses"] = losses
         loss_func = any_getattr(self.LOSS, loss_func)(**loss_kwargs)
-        if flatten:
-            printc(
-                "WARN: flatten is deprecated. nn losses support N-D by default"
-                "custom losses should do the same or provide their own flatten"
-            )
 
         self.loss_func = loss_func
+
+    def build_losses(self, **losses):
+        losses = copy.deepcopy(losses)
+        self.losses = {}
+        self.loss_weights = {}
+        for name, loss_kwargs in losses.items():
+            self.loss_weights[name] = loss_kwargs.pop("loss_weight", 1)
+            loss_func = loss_kwargs.pop("loss_func")
+            self.losses[name] = any_getattr(self.LOSS, loss_func)(**loss_kwargs)
 
     def build_train(
         self, optim, epochs, scheduler=None, warmup=None, accumulate_gradients=None
