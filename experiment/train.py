@@ -317,7 +317,7 @@ class TrainExperiment(Experiment):
             for epoch in range(start, end):
                 printc(f"Start epoch {epoch}", color="YELLOW")
                 self._epoch = epoch
-                if epoch % self.checkpoint_freq == 0:
+                if self.checkpoint_freq > 0 and epoch % self.checkpoint_freq == 0:
                     self.checkpoint(tag="last")
                 self.train(epoch)
                 self.eval(epoch)
@@ -370,39 +370,20 @@ class TrainExperiment(Experiment):
         self.before_epoch(phase, epoch)
 
         with torch.set_grad_enabled(grad_enabled):
-            for i in range(len(dl)):
-                self.before_batch(phase, epoch, i)
-                with timer("t_data"):
-                    x, y = next(epoch_iter)
-                    x, y = x.to(self.device), y.to(self.device)
-                with timer("t_forward"):
-                    yhat = self.model(x)
-                    loss = self.loss_func(yhat, y)
-                if phase == "train":
-                    with timer("t_backward"):
-                        loss.backward()
-                    with timer("t_optim"):
-                        if isinstance(self.scheduler, WarmupScheduler):
-                            self.scheduler.warmup_step()
-                        if (
-                            self.accumulate_gradients is None
-                            or (i + 1) % self.accumulate_gradients == 0
-                        ):
-                            self.optim.step()
-                            self.optim.zero_grad()
-
-                meters["loss"].add(loss.item())
-                self.compute_metrics(phase, meters, loss, y, yhat)
+            for batch_idx in range(len(dl)):
+                self.before_batch(phase, epoch, batch_idx)
+                outputs = self.run_step(phase, epoch_iter, batch_idx, timer)
+                self.compute_metrics(phase, meters, outputs)
 
                 postfix = {k: v.mean for k, v in meters.items()}
 
                 for cb in self.batch_callbacks:
-                    cb(phase, epoch, i, postfix)
+                    cb(phase, epoch, batch_idx, postfix)
 
                 if progress:
                     epoch_progress.set_postfix(postfix)
 
-                self.after_batch(phase, epoch, i)
+                self.after_batch(phase, epoch, batch_idx)
 
         metrics = {k: v.mean for k, v in meters.items()}
 
@@ -413,10 +394,36 @@ class TrainExperiment(Experiment):
                     metrics[f"{k}_mean"] = t.mean
                     metrics[f"{k}_std"] = t.std
 
-        self.save_metrics(epoch=epoch, phase=phase, **metrics)
+        metrics.update(dict(epoch=epoch, phase=phase))
+        self.metrics.dump(metrics)
         self.after_epoch(phase, epoch)
 
-    def compute_metrics(self, phase, meters, loss, y, yhat):
+        return metrics
+
+    def run_step(self, phase, batch_iter, batch_idx, timer):
+        with timer("t_data"):
+            x, y = to_device(next(batch_iter), self.device)
+        with timer("t_forward"):
+            yhat = self.model(x)
+            loss = self.loss_func(yhat, y)
+        if phase == "train":
+            with timer("t_backward"):
+                loss.backward()
+            with timer("t_optim"):
+                if isinstance(self.scheduler, WarmupScheduler):
+                    self.scheduler.warmup_step()
+                if (
+                    self.accumulate_gradients is None
+                    or (batch_idx + 1) % self.accumulate_gradients == 0
+                ):
+                    self.optim.step()
+                    self.optim.zero_grad()
+
+        return dict(loss=loss, y=y, yhat=yhat)
+
+    def compute_metrics(self, phase, meters, outputs):
+        loss, y, yhat = outputs["loss"], outputs["y"], outputs["yhat"]
+        meters["loss"].add(loss.item())
         if self.metric_fns:
             for name, f in self.metric_fns.items():
                 val = f(yhat, y)
@@ -424,10 +431,10 @@ class TrainExperiment(Experiment):
                     val = val.item()
                 meters[name].add(val)
 
-    def before_batch(self, phase, epoch, iteration):
+    def before_batch(self, phase, epoch, batch_idx):
         pass
 
-    def after_batch(self, phase, epoch, iteration):
+    def after_batch(self, phase, epoch, batch_idx):
         pass
 
     def before_epoch(self, phase, epoch):
