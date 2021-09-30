@@ -114,9 +114,6 @@ class TrainExperiment(Experiment):
         self.model = constructor(**model_kwargs)
 
         if weights is not None:
-            with make_path(weights).open("wb") as f:
-                self.load_model(torch.load(f))
-
             with make_path(weights).open("rb") as f:
                 self.load_model(
                     torch.load(
@@ -186,6 +183,7 @@ class TrainExperiment(Experiment):
     def _load_module(self, checkpoint, module, ignore_missing=False):
         # assert checkpoint.exists(), f"Checkpoint path {checkpoint} does not exist"
         # checkpoint = torch.load(checkpoint)
+        checkpoint = self._path_to_checkpoint(checkpoint)
         if module == "model":
             getattr(self, module).load_state_dict(
                 checkpoint[f"{module}_state_dict"], strict=not ignore_missing
@@ -243,11 +241,21 @@ class TrainExperiment(Experiment):
             return
         self.reload(tag=tag)
 
+    def _path_to_checkpoint(self, path):
+        if isinstance(path, pathlib.Path):
+            with path.open("rb") as f:
+                checkpoint = torch.load(
+                    f,
+                    map_location=(
+                        None if torch.cuda.is_available() else torch.device("cpu")
+                    ),
+                )
+            return checkpoint
+        return path
+
     def reload(self, tag=None, ignore_missing=False):
         tag = tag if tag is not None else "last"
-        checkpoint_file = f"{tag}.pt"
-        with (self.checkpoint_path / checkpoint_file).open("rb") as f:
-            checkpoint = torch.load(f)
+        checkpoint = self._path_to_checkpoint(self.checkpoint_path / f"{tag}.pt")
         self._epoch = checkpoint["epoch"]
         self.load_model(checkpoint, ignore_missing=ignore_missing)
         self.load_optim(checkpoint)
