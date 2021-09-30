@@ -1,6 +1,7 @@
 import collections
 import copy
 import itertools
+import pandas as pd
 
 
 def dict_product(dicts):
@@ -66,3 +67,18 @@ def delete_with_prefix(d, pre):
     for k in todelete:
         del d[k]
     return d
+
+
+def dictdiff(*ds, flatten=False):
+    if flatten:
+        ds = [expand_keys(d) for d in ds]
+    from functools import reduce
+    import operator
+    rows = []
+    ks = reduce(operator.or_, [set(d.keys()) for d in ds])
+    for k in ks:
+        vs = [d.get(k, '') for d in ds]
+        if not all(vs[0] == v for v in vs):
+            rows.append([k] + vs)
+    return pd.DataFrame(data=rows)
+
