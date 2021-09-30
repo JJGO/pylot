@@ -39,3 +39,12 @@ def inplace_yaml(path, backup=False):
         _backup_file(path)
     with open(path, "w") as f:
         yaml.safe_dump(data, f, indent=2)
+
+
+@contextmanager
+def inplace_jsonl(path, backup=False):
+    df = pd.read_json(path, lines=True)
+    yield df
+    if backup:
+        _backup_file(path)
+    df.to_json(path, orient='records', lines=True)
