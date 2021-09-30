@@ -66,6 +66,22 @@ def PrintLogged(experiment):
 #     return PrintLoggedCallback
 
 
+def JobProgress(experiment):
+
+    from syl import JobEnvironment
+
+    job = JobEnvironment().job
+    total = experiment.epochs
+    if job:
+        job["path"] = str(experiment.path)
+
+    def JobProgessCallback(epoch):
+        if job:
+            job.update_progress(round((epoch + 1) / total, 4))
+
+    return JobProgessCallback
+
+
 class ETA:
     def __init__(self, experiment, n_steps=None, print_freq=1, gamma=0.9):
         if n_steps is None:
