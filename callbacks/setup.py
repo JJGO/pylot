@@ -1,9 +1,34 @@
 import json
 
 import pandas as pd
+from tabulate import tabulate
 
 from ..util import S3Path
 from ..util.summary import summary
+
+from ..metrics import module_table, parameter_table
+
+
+def ParameterTable(experiment, save=True, verbose=False):
+
+    df = parameter_table(experiment.model)
+    if verbose:
+        print(tabulate(df, headers="keys"))
+
+    if save:
+        with (experiment.path / "params.csv").open("w") as f:
+            df.to_csv(f, index=False)
+
+
+def ModuleTable(experiment, save=True, verbose=False):
+
+    df = module_table(experiment.model)
+    if verbose:
+        print(tabulate(df, headers="keys"))
+
+    if save:
+        with (experiment.path / "modules.csv").open("w") as f:
+            df.to_csv(f, index=False)
 
 
 def Summary(experiment, filename="summary.txt"):
@@ -39,7 +64,7 @@ def Summary(experiment, filename="summary.txt"):
             json.dump(s, f)
 
 
-def Topology(experiment, filename="topology", extension="pdf"):
+def Topology(experiment, filename="topology", extension="svg"):
     assert extension in ("pdf", "svg")
     from torchviz import make_dot
 
@@ -65,57 +90,10 @@ def Topology(experiment, filename="topology", extension="pdf"):
             topology_path.unlink()
 
 
-def ParameterTable(experiment, save=False):
+def CheckHalfCosineSchedule(experiment):
 
-    from rich.console import Console
-    from rich.table import Table
-
-    console = Console(width=150)
-
-    table = Table(show_header=True, header_style="bold")
-    table.add_column("Param")
-    table.add_column("Shape", justify="right")
-    table.add_column("Numel", justify="right")
-    table.add_column("Grad")
-    table.add_column("Dtype")
-    table.add_column("Dev")
-
-    data = []
-    for k, v in experiment.model.named_parameters():
-        row = [k, tuple(v.size()), v.numel(), v.requires_grad, v.dtype, v.device]
-        data.append(row)
-        table.add_row(*[str(i) for i in row])
-
-    console.print(table)
-
-    if save:
-        columns = ["param", "shape", "numel", "grad", "dtype", "device"]
-        df = pd.DataFrame(data, columns=columns)
-        with (experiment.path / "params.csv").open('w') as f:
-            df.to_csv(f, index=False)
-
-
-def ModuleTable(experiment, save=False):
-
-    from rich.console import Console
-    from rich.table import Table
-
-    console = Console(width=150)
-
-    table = Table(show_header=True, header_style="bold")
-    table.add_column("Module")
-    table.add_column("Name")
-
-    data = []
-    for k, m in experiment.model.named_modules():
-        row = [m.__class__.__name__, k]
-        data.append(row)
-        table.add_row(*[str(i) for i in row])
-
-    console.print(table)
-
-    if save:
-        columns = ["module", "name"]
-        df = pd.DataFrame(data, columns=columns)
-        with (experiment.path / "modules.csv").open('w') as f:
-            df.to_csv(f, index=False)
+    scheduler = experiment.get_param("train.scheduler.scheduler", None)
+    if scheduler == "CosineAnnealingLR":
+        T_max = experiment.get_param("train.scheduler.T_max", -1)
+        epochs = experiment.get_param("train.epochs")
+        assert T_max == epochs, f"T_max not equal to epochs {T_max} != {epochs}"
