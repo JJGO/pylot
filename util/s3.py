@@ -26,7 +26,9 @@ class S3Path(pathlib.PosixPath):
 
     @classmethod
     def get_driver(cls):
-        assert cls._s3driver is not None, "Driver must be initialized with S3Path.init_driver"
+        assert (
+            cls._s3driver is not None
+        ), "Driver must be initialized with S3Path.init_driver"
         return cls._s3driver
 
     @classmethod
@@ -41,6 +43,12 @@ class S3Path(pathlib.PosixPath):
 
     # def __new__(cls, *args, **kwargs):
     def _init(self, *args, **kwargs):
+        if self._s3driver is None and all(
+            k in os.environ for k in ("S3_HOST", "S3_KEY", "S3_SECRET")
+        ):
+            S3Path.init_driver(
+                os.environ["S3_HOST"], os.environ["S3_KEY"], os.environ["S3_SECRET"]
+            )
         assert (
             self._s3driver is not None
         ), "Driver must be initialized with S3Path.init_driver"
@@ -105,16 +113,18 @@ class S3Path(pathlib.PosixPath):
 
     def rmtree(self):
         return self._s3driver.rm(str(self), recursive=True)
- 
+
     @staticmethod
     @contextmanager
     def as_local(remote_path):
         if isinstance(remote_path, S3Path):
-            local_path = pathlib.Path('/tmp/' + uuid.uuid4().hex)
+            local_path = pathlib.Path("/tmp/" + uuid.uuid4().hex)
             local_path = local_path.with_suffix(remote_path.suffix)
 
             if remote_path.exists():
-                remote_path._s3driver.get(str(remote_path), str(local_path), recursive=True)
+                remote_path._s3driver.get(
+                    str(remote_path), str(local_path), recursive=True
+                )
 
             yield local_path
             remote_path._s3driver.put(str(local_path), str(remote_path), recursive=True)
@@ -125,6 +135,7 @@ class S3Path(pathlib.PosixPath):
                 shutil.rmtree(local_path)
         else:
             yield remote_path
+
 
 # @contextmanager
 # def local_path(path):
