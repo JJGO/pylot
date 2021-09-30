@@ -1,5 +1,4 @@
 from .vae import vae_loss, kld_loss
-from .total_variation import total_variation2d
 from .flat import *
 from .multi import MultiLoss
 from .segmentation import (
@@ -9,3 +8,5 @@ from .segmentation import (
     SoftJaccardLoss,
     PixelMSELoss
 )
+from .total_variation import total_variation_loss, TotalVariationLoss
+from .ncc import ncc_loss, NCCLoss
