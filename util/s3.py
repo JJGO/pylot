@@ -136,6 +136,12 @@ class S3Path(pathlib.PosixPath):
         else:
             yield remote_path
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{super().__str__()}')"
+
+    def __str__(self):
+        return f"s3://{super().__str__()}"
+
 
 # @contextmanager
 # def local_path(path):
