@@ -6,3 +6,4 @@ from .util import num_params
 from .conv import *
 from .interpolation import resize
 from .init import initialize_layer, initialize_tensor
+from .nonlinearity import get_nonlinearity, register_nonlinearity

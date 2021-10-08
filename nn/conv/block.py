@@ -1,6 +1,7 @@
 from torch import nn
 
 from . import separable
+from ...nn.activation import get_nonlinearity
 
 from typing import List, Optional
 
@@ -21,7 +22,7 @@ class ConvBlock(nn.Module):
         self.residual = residual
 
         if activation is not None:
-            nonlinearity = getattr(nn, activation)
+            nonlinearity = get_nonlinearity(nn, activation)
 
         conv_fn = getattr(nn, f"Conv{dims}d")
         if depthsep:

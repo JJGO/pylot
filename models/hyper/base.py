@@ -8,8 +8,9 @@ import torch
 from torch import nn
 from torch import Tensor
 
-from ...nn.init import initialize_tensor, initialize_layer
 from ...layers.regularization import L2ActivationRegularizer
+from ...nn.init import initialize_tensor, initialize_layer
+from ...nn.activation import get_nonlinearity
 
 
 @dataclass(eq=False, repr=False)
@@ -32,7 +33,7 @@ class HyperNet(nn.Module):
             )
 
         super().__init__()
-        nonlinearity = getattr(nn, self.activation)
+        nonlinearity = get_nonlinearity(self.activation)
 
         self.flat_input_size = sum(int(np.prod(v)) for v in self.input_sizes.values())
 
@@ -64,8 +65,7 @@ class HyperNet(nn.Module):
                 initialize_tensor(lin.bias, bias_dist, nonlinearity=self.activation)
 
             if self.init_kws is not None:
-                self.init_kws["nonlinearity"] = self.activation
-                initialize_layer(lin)
+                initialize_layer(lin, **{**self.init_kws, 'nonlinearity': self.activation})
 
             # lin.bias.data.fill_(0)
             layers.extend(
