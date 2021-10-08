@@ -135,7 +135,7 @@ def _metric_reduction(
         loss *= weights.type(loss.dtype).to(loss.device)
 
     N = len(loss)
-    if ignore_index and 0 <= ignore_index < N:
+    if ignore_index is not None and 0 <= ignore_index < N:
         N -= 1
     if reduction is None:
         return loss
