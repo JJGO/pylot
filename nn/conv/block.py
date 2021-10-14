@@ -2,6 +2,7 @@ from torch import nn
 
 from . import separable
 from ...nn.nonlinearity import get_nonlinearity
+from ...nn.init import initialize_layer
 
 from typing import List, Optional, Union
 
@@ -17,6 +18,8 @@ class ConvBlock(nn.Module):
         batch_norm: bool = True,
         residual: bool = False,
         depthsep: bool = False,
+        init_distribution: Optional[str] = "kaiming_normal",
+        init_bias: Union[float, str] = 0.0,
     ):
         super().__init__()
         self.residual = residual
@@ -50,6 +53,18 @@ class ConvBlock(nn.Module):
         self.aux = None
         if residual and inplanes != filters[-1]:
             self.aux = getattr(nn, f"Conv{dims}d")(inplanes, filters[-1], kernel_size=1)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        for name, module in self.named_modules():
+            if isinstance(module, (nn.Conv1d, nn.Conv2d, nn.Conv3d)):
+                initialize_layer(
+                    module,
+                    distribution=self.init_distribution,
+                    init_bias=self.init_bias,
+                    nonlinearity=self.activation,
+                )
 
     def forward(self, input):
         x = self.f(input)
