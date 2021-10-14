@@ -1,6 +1,6 @@
 import math
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Optional, Any, Union
 import warnings
 
 import numpy as np
@@ -9,8 +9,8 @@ from torch import nn
 from torch import Tensor
 
 from ...layers.regularization import L2ActivationRegularizer
-from ...nn.init import initialize_tensor, initialize_layer
-from ...nn.activation import get_nonlinearity
+from ...nn.init import initialize_layer
+from ...nn.nonlinearity import get_nonlinearity
 
 
 @dataclass(eq=False, repr=False)
@@ -23,8 +23,7 @@ class HyperNet(nn.Module):
     encoder: Optional[str] = None
     output_weight_decay: Optional[float] = None
     init_distribution: Optional[str] = None
-    init_zero_bias: bool = True
-    init_kws: Optional[Dict[str, Any]] = None  # Deprecated
+    init_bias: Union[float, str] = 0.0
 
     def __post_init__(self):
         if self.init_kws is not None:
@@ -57,17 +56,6 @@ class HyperNet(nn.Module):
         for in_size, out_size in zip(sizes, sizes[1:]):
             lin = nn.Linear(in_size, out_size)
 
-            initialize_tensor(
-                lin.weight, self.init_distribution, nonlinearity=self.activation
-            )
-            if lin.bias is not None:
-                bias_dist = "zeros" if self.init_zero_bias else self.init_distribution
-                initialize_tensor(lin.bias, bias_dist, nonlinearity=self.activation)
-
-            if self.init_kws is not None:
-                initialize_layer(lin, **{**self.init_kws, 'nonlinearity': self.activation})
-
-            # lin.bias.data.fill_(0)
             layers.extend(
                 [
                     lin,
@@ -79,8 +67,7 @@ class HyperNet(nn.Module):
 
             flat_size = np.prod(size)
             lin = nn.Linear(self.layer_sizes[-1], flat_size)
-            # lin.ModuleDict[k].weight.data.normal_
-            lin.bias.data.fill_(0)
+
             if self.output_weight_decay is None:
                 self.heads[k] = lin
             else:
@@ -88,7 +75,27 @@ class HyperNet(nn.Module):
                     lin, L2ActivationRegularizer(self.output_weight_decay)
                 )
 
-        self.layers = nn.Sequential(*layers)
+        self.backbone = nn.Sequential(*layers)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+
+        for module in self.backbone:
+            initialize_layer(
+                module,
+                self.init_distribution,
+                init_bias=self.init_bias,
+                nonlinearity=self.activation,
+            )
+        for module in self.heads.values():
+            # Output is linear
+            initialize_layer(
+                module,
+                self.init_distribution,
+                init_bias=self.init_bias,
+                nonlinearity=None,
+            )
 
     def _validate_input(self, inputs):
         assert set(inputs) == set(
@@ -137,7 +144,7 @@ class HyperNet(nn.Module):
         self._validate_input(inputs)
         flat_input = self._flatten_input(inputs)
         flat_input = self._encode_input(flat_input)
-        intermediate = self.layers(flat_input)
+        intermediate = self.backbone(flat_input)
 
         outputs = {
             k: self.heads[k](intermediate).view(self.output_sizes[k])
