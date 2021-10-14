@@ -122,9 +122,7 @@ class VoidUNet(nn.Module):
                 if self.batch_norm:
                     x = self.layers[f"up_{i}_{j}_bn"](x)
 
-        x = conv_fn(
-            x, params["out_conv_weight"], params["out_conv_bias"]
-        )
+        x = conv_fn(x, params["out_conv_weight"], params["out_conv_bias"])
 
         if self.out_activation is not None:
             x = self.out_activation(x)
