@@ -27,7 +27,7 @@ def get_default_kwargs(func):
 
 
 # Taken from fastcore.foundation
-def delegates(to=None, keep=False, but=None):
+def delegates(to=None, keep=False, but=None, via='kwargs'):
     "Decorator: replace `**kwargs` in signature with params from `to`"
     if but is None:
         but = []
@@ -43,7 +43,7 @@ def delegates(to=None, keep=False, but=None):
             return f
         sig = inspect.signature(from_f)
         sigd = dict(sig.parameters)
-        k = sigd.pop("kwargs")
+        k = sigd.pop(via)
         s2 = {
             k: v
             for k, v in inspect.signature(to_f).parameters.items()
@@ -51,7 +51,7 @@ def delegates(to=None, keep=False, but=None):
         }
         sigd.update(s2)
         if keep:
-            sigd["kwargs"] = k
+            sigd[via] = k
         else:
             from_f.__delwrap__ = to_f
         from_f.__signature__ = sig.replace(parameters=sigd.values())
