@@ -1,12 +1,12 @@
-from torch import nn
-
+import copy
 from collections import OrderedDict
 from functools import lru_cache
 
+from torch import nn
+from pylot.util.mapping import allbut
+
 from .void import VoidModule
 from .xparam import ExternalParameter
-
-from pylot.util.mapping import allbut
 
 
 def _init_from_regular(self, module: nn.Module):
@@ -44,7 +44,7 @@ def _voidify(module: nn.Module, recurse=True, memo=None, whitelist=None):
         elif whitelist is None or isinstance(module, whitelist):
             memo[module] = _voided_class(module.__class__)(module)
         else:
-            memo[module] = module
+            memo[module] = copy.deepcopy(module)
 
     voided_module = memo[module]
 
