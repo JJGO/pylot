@@ -76,6 +76,8 @@ class UNet(nn.Module):
             else:
                 self.out_fn = get_nonlinearity(self.out_activation)()
 
+        self.reset_parameters()
+
     def reset_parameters(self):
         for module in self.down_blocks + self.up_blocks + [self.out_conv]:
             module.reset_parameters()
