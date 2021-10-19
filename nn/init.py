@@ -6,6 +6,8 @@ from torch.nn import init
 
 
 def initialize_weight(weight, distribution, nonlinearity="LeakyReLU"):
+    if distribution is None:
+        return
 
     if nonlinearity:
         nonlinearity = nonlinearity.lower()
@@ -16,11 +18,12 @@ def initialize_weight(weight, distribution, nonlinearity="LeakyReLU"):
         warnings.warn("sine gain not implemented, defaulting to tanh")
         nonlinearity = "tanh"
 
+    if nonlinearity is None:
+        nonlinearity = 'linear'
+
     gain = 1 if nonlinearity is None else init.calculate_gain(nonlinearity)
 
-    if distribution is None:
-        pass
-    elif distribution == "zeros":
+    if distribution == "zeros":
         init.zeros_(weight)
     elif distribution == "kaiming_normal":
         init.kaiming_normal_(weight, nonlinearity=nonlinearity)
@@ -41,6 +44,8 @@ def initialize_weight(weight, distribution, nonlinearity="LeakyReLU"):
 
 
 def initialize_bias(bias, distribution=0, nonlinearity="LeakyReLU", weight=None):
+    if distribution is None:
+        return
     if isinstance(distribution, (int, float)):
         init.constant_(bias, distribution)
     else:
