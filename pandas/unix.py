@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Union
 import shutil
@@ -51,4 +52,12 @@ class UnixAccessor:
         if not strict:
             ser = ser[ser.map(lambda x: x.exists())]
         ser.map(lambda path: shutil.move(path, dest / path.name))
+        return ser.map(lambda path: dest / path.name)
+
+    def ln(self, dest: Union[str, Path], strict: bool = False):
+        dest = self._validate_dest(dest)
+        ser = self._ser
+        if not strict:
+            ser = ser[ser.map(lambda x: x.exists())]
+        ser.map(lambda path: os.symlink(path, dest / path.name))
         return ser.map(lambda path: dest / path.name)
