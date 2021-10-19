@@ -53,7 +53,7 @@ def initialize_layer(
 
     assert isinstance(
         layer, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d)
-    ), "Can only be applied to linear and conv layers"
+    ), f"Can only be applied to linear and conv layers, given {layer.__class__.__name__}"
 
     initialize_weight(layer.weight, distribution, nonlinearity)
     if layer.bias is not None:
