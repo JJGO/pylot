@@ -18,8 +18,8 @@ Shapes = Dict[str, Tuple[int, ...]]
 class HyperNet(nn.Module):
 
     input_sizes: Shapes
-    layer_sizes: List[int]
     output_sizes: Shapes
+    layer_sizes: List[int]
     activation: str = "LeakyReLU"
     encoder: Optional[str] = None
     init_distribution: Optional[str] = None

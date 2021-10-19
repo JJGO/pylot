@@ -6,8 +6,7 @@ from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
 
-from .block import ConvBlock
-from .. import get_nonlinearity
+from pylot.nn import get_nonlinearity, ConvBlock
 
 
 @dataclass(eq=False, repr=False)
@@ -79,8 +78,9 @@ class UNet(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        for module in self.down_blocks + self.up_blocks + [self.out_conv]:
-            module.reset_parameters()
+        for group in (self.down_blocks, self.up_blocks, [self.out_conv]):
+            for module in group:
+                module.reset_parameters()
 
     def forward(self, x: Tensor) -> Tensor:
 

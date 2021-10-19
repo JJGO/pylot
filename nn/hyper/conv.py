@@ -45,8 +45,8 @@ class _VoidConvNd(VoidModule):
         self.groups = base.groups
         self.padding_mode = base.padding_mode
 
-        self.weight = ExternalParameter(base.weight.shape)
-        self.bias = ExternalParameter(base.bias.shape) if bias else None
+        self.weight = ExternalParameter(tuple(base.weight.shape))
+        self.bias = ExternalParameter(tuple(base.bias.shape)) if bias else None
 
     def forward(self, input: Tensor) -> Tensor:
         return self._conv_mod._conv_forward(self, input, self.weight, self.bias)
