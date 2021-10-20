@@ -49,19 +49,15 @@ class HyperNet(nn.Module):
 
         # Assign linear layers
         sizes = [self.flat_input_size] + self.layer_sizes
-        layers = []
-        for in_size, out_size in zip(sizes, sizes[1:]):
+        self.layers = nn.Sequential()
+        for i, (in_size, out_size) in enumerate(zip(sizes, sizes[1:])):
             lin = nn.Linear(in_size, out_size)
+            self.layers.add_module(f"l{i}_dense", lin)
+            self.layers.add_module(f"l{i}_act", nonlinearity())
 
-            layers.extend(
-                [
-                    lin,
-                    nonlinearity(),
-                ]
-            )
-
-        layers.append(nn.Linear(self.layer_sizes[-1], self.flat_output_size))
-        self.layers = nn.Sequential(*layers)
+        self.layers.add_module(
+            "out", nn.Linear(self.layer_sizes[-1], self.flat_output_size)
+        )
 
         if reset:
             self.reset_parameters()

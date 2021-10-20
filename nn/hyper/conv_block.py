@@ -35,8 +35,8 @@ class VoidConvBlock(VoidModule):
             conv_fn = getattr(separable, f"VoidDepthWiseSeparableConv{dims}d")
         bn_fn = getattr(nn, f"BatchNorm{dims}d")
 
-        ops = []
-        for n_in, n_out in zip([inplanes] + filters, filters):
+        self.F = nn.Sequential()
+        for i, (n_in, n_out) in enumerate(zip([inplanes] + filters, filters)):
             conv = conv_fn(
                 n_in,
                 n_out,
@@ -44,29 +44,23 @@ class VoidConvBlock(VoidModule):
                 padding=kernel_size // 2,
                 padding_mode="zeros",
             )
-            ops.append(conv)
+            self.F.add_module(f"b{i}_conv", conv)
 
             if activation is not None:
-                ops.append(nonlinearity())
+                self.F.add_module(f"b{i}_act", nonlinearity())
             if batch_norm:
-                ops.append(bn_fn(n_out))
-        self.f = nn.Sequential(*ops)
+                self.F.add_module(f"b{i}_bn", bn_fn(n_out))
 
-        self.aux = None
+        self.shortcut = None
         if residual and inplanes != filters[-1]:
-            self.aux = getattr(pylot.nn.hyper, f"VoidConv{dims}d")(
+            self.shortcut = getattr(pylot.nn.hyper, f"VoidConv{dims}d")(
                 inplanes, filters[-1], kernel_size=1
             )
 
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        pass
-
     def forward(self, input):
-        x = self.f(input)
+        x = self.F(input)
         if self.residual:
-            if self.aux:
-                input = self.aux(input)
+            if self.shortcut:
+                input = self.shortcut(input)
             x = x + input
         return x
