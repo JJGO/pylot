@@ -24,6 +24,7 @@ class MetricsStore:
     def dump_df(self, df: pd.DataFrame):
         with self.path.open("a") as f:
             df.to_json(f, orient="records", lines=True)
+            f.write('\n')
 
     @property
     def data(self) -> List[Dict[str, Any]]:
