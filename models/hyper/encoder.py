@@ -35,7 +35,7 @@ class Encoder:
             return 2 * flat_input - 1
         if self.mode == "z|z":
             return torch.cat([z, z], dim=-1)
-        if self.mode == "z,1-z":
+        if self.mode == "z|1-z":
             return torch.cat([z, 1 - z], dim=-1)
         if self.mode == "cos|sin":
             a = math.pi * z / 2

@@ -14,7 +14,10 @@ def _init_from_regular(self, module: nn.Module):
     self.__dict__.update(allbut(module.__dict__, ["_parameters"]))
     self._parameters = {}
     for name, value in module._parameters.items():
-        setattr(self, name, ExternalParameter(value.shape))
+        if isinstance(value, nn.Parameter):
+            setattr(self, name, ExternalParameter(value.shape))
+        else:
+            setattr(self, name, value)
 
 
 @lru_cache(maxsize=None)

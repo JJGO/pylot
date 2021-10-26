@@ -1,7 +1,6 @@
 # Basic Building blocks for VoidModules
 from .xparam import ExternalParameter
 from .void import VoidModule
-from .voidify import voidify
 
 # Void reimplementations of nn modules
 from .linear import VoidLinear
