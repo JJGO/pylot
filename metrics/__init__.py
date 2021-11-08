@@ -1,3 +1,5 @@
+from torch.nn.functional import cross_entropy
+
 from .accuracy import accuracy, correct
 from .size import model_size
 
