@@ -30,7 +30,7 @@ from ..util import (
     allbut,
     make_path,
     to_device,
-    any_getattr
+    any_getattr,
 )
 from .. import callbacks
 from .. import datasets
@@ -145,7 +145,13 @@ class TrainExperiment(Experiment):
             self.losses[name] = any_getattr(self.LOSS, loss_func)(**loss_kwargs)
 
     def build_train(
-        self, optim, epochs, scheduler=None, warmup=None, accumulate_gradients=None
+        self,
+        optim,
+        epochs,
+        scheduler=None,
+        warmup=None,
+        accumulate_gradients=None,
+        **train_kws,  # Extra parameters that are manually retrieved with self.get_param
     ):
 
         self.epochs = epochs
@@ -200,9 +206,12 @@ class TrainExperiment(Experiment):
     def load_scheduler(self, checkpoint):
         self._load_module(checkpoint, "scheduler")
 
-    def to_device(self):
+    def to_device(self, device=None):
         # Torch CUDA config
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if device:
+            self.device = device
+        elif self.device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if not torch.cuda.is_available():
             printc("GPU NOT AVAILABLE, USING CPU!", color="RED")
         self.model.to(self.device)
