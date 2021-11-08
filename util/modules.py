@@ -1,4 +1,8 @@
 def any_getattr(modules, attr):
+    if "." in attr:
+        module, obj = attr.rsplit(".", 1)
+        from importlib import import_module
+        return getattr(import_module(module), obj)
     for module in reversed(modules):
         if hasattr(module, attr):
             return getattr(module, attr)
