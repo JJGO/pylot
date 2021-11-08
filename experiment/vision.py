@@ -9,15 +9,15 @@ from ..metrics import correct
 class VisionClassificationTrainExperiment(TrainExperiment):
     """Vision Classification TrainExperiment"""
 
-    def build_model(self, model, **model_kwargs):
-        # Replace classifier layer (i.e. pre-softmax)
-        # So #-of-classes is correct
-        super().build_model(model, **model_kwargs)
-        clf = get_classifier_module(self.model)
-        if clf.out_features != self.dataset.n_classes:
-            replace_head(self.model, self.dataset.n_classes)
-        clf = get_classifier_module(self.model)
-        assert clf.out_features == self.dataset.n_classes
+    # def build_model(self, model, **model_kwargs):
+    #     # Replace classifier layer (i.e. pre-softmax)
+    #     # So #-of-classes is correct
+    #     super().build_model(model, **model_kwargs)
+    #     clf = get_classifier_module(self.model)
+    #     if clf.out_features != self.dataset.n_classes:
+    #         replace_head(self.model, self.dataset.n_classes)
+    #     clf = get_classifier_module(self.model)
+    #     assert clf.out_features == self.dataset.n_classes
 
     def compute_metrics(self, phase, meters, outputs):
         super().compute_metrics(phase, meters, outputs)
