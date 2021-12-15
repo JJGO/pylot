@@ -22,9 +22,10 @@ class HyperNet(nn.Module):
     layer_sizes: List[int]
     activation: str = "LeakyReLU"
     encoder: Optional[str] = None
-    init_distribution: Optional[str] = None
+    init_distribution: Optional[str] = "kaiming_normal_fanout"
     init_bias: Union[float, str] = 0.0
     rescale_output: bool = False  # TODO
+    separate_last: bool = True
 
     def __post_init__(self, reset=True):
 
@@ -55,23 +56,42 @@ class HyperNet(nn.Module):
             self.layers.add_module(f"l{i}_dense", lin)
             self.layers.add_module(f"l{i}_act", nonlinearity())
 
-        self.layers.add_module(
-            "out", nn.Linear(self.layer_sizes[-1], self.flat_output_size)
-        )
+        if self.separate_last:
+            self.outputs = nn.ModuleDict()
+            for k, size in self.output_sizes.items():
+                flat_size = np.prod(size)
+                lin = nn.Linear(self.layer_sizes[-1], flat_size)
+                self.outputs[k.replace(".", ":")] = lin
+        else:
+            self.output = nn.Linear(self.layer_sizes[-1], self.flat_output_size)
 
         if reset:
             self.reset_parameters()
 
     def reset_parameters(self):
-        last = len(self.layers) - 1
-        for i, module in enumerate(self.layers):
+        for module in self.layers:
             if isinstance(module, nn.Linear):
                 initialize_layer(
                     module,
                     self.init_distribution,
                     init_bias=self.init_bias,
-                    nonlinearity=None if i == last else self.activation,
+                    nonlinearity=self.activation,
                 )
+        if self.separate_last:
+            for module in self.outputs.values():
+                initialize_layer(
+                    module,
+                    self.init_distribution,
+                    init_bias=self.init_bias,
+                    nonlinearity=None,
+                )
+        else:
+            initialize_layer(
+                self.output,
+                self.init_distribution,
+                init_bias=self.init_bias,
+                nonlinearity=None,
+            )
 
     def _validate_input(self, inputs):
         assert set(inputs) == set(
@@ -97,8 +117,21 @@ class HyperNet(nn.Module):
         return outputs
 
     def forward(self, **inputs: Dict[str, Tensor]):
+
         self._validate_input(inputs)
         flat_input = self._flatten_input(inputs)
         flat_input = self._encoder(flat_input)
-        flat_output = self.layers(flat_input)
-        return self._unflatten_output(flat_output)
+        intermediate = self.layers(flat_input)
+
+        if self.separate_last:
+            output = {
+                k: self.outputs[k.replace(".", ":")](intermediate).view(
+                    self.output_sizes[k]
+                )
+                for k in self.output_sizes
+            }
+        else:
+            flat_output = self.output(intermediate)
+            output = self._unflatten_output(flat_output)
+
+        return output
