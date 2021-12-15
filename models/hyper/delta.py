@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import torch
 from torch import nn, Tensor
@@ -12,8 +12,8 @@ from ...nn.init import initialize_weight, initialize_bias
 class DeltaHyperNet(HyperNet):
 
     factor: float = 1
-    main_init_distribution: str = "kaiming_uniform"
-    main_init_bias: bool = True
+    main_init_distribution: str = "kaiming_normal"
+    main_init_bias: Union[float, str] = 0.0
     main_requires_grad: bool = True
     main_nonlinearity: Optional[str] = "LeakyReLU"
 
