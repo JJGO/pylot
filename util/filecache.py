@@ -1,66 +1,31 @@
-import copy
-import json
 import pathlib
-import pickle
-import yaml
-import pandas as pd
 
-def load_yaml(path):
-    with open(path, 'r') as f:
-        return yaml.safe_load(f)
+from concurrent.futures import ThreadPoolExecutor
+from diskcache import Cache, Disk
 
-def load_json(path):
-    with open(path, 'r') as f:
-        return json.load(f)
+from .ioutil import autoload
 
-def load_csv(path):
-    return pd.read_csv(path)
 
-def load_txt(path):
-    with open(path, 'r') as f:
-        return f.read()
+class FileCache(Cache):
+    def __init__(self, directory=None, timeout=60, disk=Disk, **settings):
+        super().__init__(directory=directory, timeout=timeout, disk=disk, **settings)
 
-def load_jsonl_df(path):
-    return pd.read_json(path, lines=True)
-
-Loaders = {
-    '.yml': load_yaml,
-    '.yaml': load_yaml,
-    '.json': load_json,
-    '.jsonl': load_jsonl_df,
-    '.csv': load_csv,
-    '.txt': load_txt,
-}
-
-class FileCache:
-
-    def __init__(self, cache_file=None, loaders=None):
-        self.cache_file = pathlib.Path(cache_file)
-        self.cache = {}
-        self.mtime = {}
-        self.loaders = loaders if loaders is not None else Loaders
-        if self.cache_file is not None and self.cache_file.exists():
-            self.load()
-
-    def dump(self):
-        with open(self.cache_file, "wb") as f:
-            pickle.dump((self.cache, self.mtime), f)
-
-    def load(self):
-        with open(self.cache_file, "rb") as f:
-            self.cache, self.mtime = pickle.load(f)
-
-    def wipe(self):
-        self.cache = {}
-        self.mtime = {}
-        if self.cache_file is not None:
-            self.dump()
-
-    def get(self, file):
-        file = pathlib.Path(file).absolute()
+    def get(self, file, **kwargs):
+        if isinstance(file, str):
+            file = pathlib.Path(file)
+        file = file.absolute()
         if not file.exists():
             return None
-        if file not in self.cache or file.stat().st_mtime != self.mtime[file]:
-            self.cache[file] = self.loaders[file.suffix](file)
-            self.mtime[file] = file.stat().st_mtime
-        return copy.deepcopy(self.cache[file])
+            # raise FileNotFoundError(f"No such file {str(file)}")
+        last_modified = file.stat().st_mtime
+        last_saved = super().get((file, "mtime"), None)
+        if file not in self or last_modified != last_saved:
+            super().set(file, autoload(file))
+            super().set((file, "mtime"), last_modified)
+        return super().get(file, **kwargs)
+
+    def gets(self, files, num_workers=0, default=None):
+        if num_workers == 0:
+            return [self.get(file) for file in files]
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            return list(executor.map(self.get, files))
