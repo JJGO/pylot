@@ -1,6 +1,9 @@
+import pathlib
+import json
+
+from collections.abc import Mapping
 from typing import Optional, Union, Dict, Any, List
 from pathlib import Path
-import json
 
 import pandas as pd
 
@@ -11,46 +14,51 @@ class MetricsStore:
             path = Path(path)
         self.path = path
 
-    def dump(self, metrics: Dict[str, Any], batch: bool = False):
-        if not batch:
-            # Save as JSONL file
-            with self.path.open("a") as f:
-                print(json.dumps(metrics), file=f)
-        else:
-            with self.path.open("a") as f:
-                for metric in metrics:
-                    print(json.dumps(metric), file=f)
+    def log(self, *metrics: list[dict[str, Any]]):
+        with self.path.open("a") as f:
+            for datapoint in metrics:
+                print(json.dumps(datapoint), file=f)
 
-    def dump_df(self, df: pd.DataFrame):
+    def log_df(self, df: pd.DataFrame):
         with self.path.open("a") as f:
             df.to_json(f, orient="records", lines=True)
-            f.write('\n')
+            f.write("\n")
 
     @property
     def data(self) -> List[Dict[str, Any]]:
         if self.path.exists():
             with self.path.open("r") as f:
                 return [json.loads(line) for line in f.readlines()]
+        return []
 
     @property
-    def df(self) -> pd.DataFrame:
+    def df(self) -> Optional[pd.DataFrame]:
         if self.path.exists():
             with self.path.open("r") as f:
                 return pd.read_json(f, lines=True)
+        return None
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({str(self.path)})"
 
 
-class MetricsDict:
+class MetricsDict(Mapping):
     def __init__(self, path):
+        if isinstance(path, str):
+            path = pathlib.Path(path)
         self.path = path
-        self.mapping = {}
 
     def __getitem__(self, key):
-        if key not in self.mapping:
-            self.mapping[key] = MetricsStore(self.path / f"{key}.jsonl")
-        return self.mapping[key]
+        return MetricsStore(self.path / f"{key}.jsonl")
 
-    def all(self):
+    def _find(self):
         return {p.stem: MetricsStore(p) for p in self.path.glob("*.jsonl")}
+
+    def __iter__(self):
+        return iter(self._find())
+
+    def __len__(self):
+        return len(self._find())
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{str(self.path)}')"
