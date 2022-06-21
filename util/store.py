@@ -1,74 +1,65 @@
+import collections
 import pathlib
+from contextlib import contextmanager
 
-import numpy as np
-from torch import Tensor
-import zarr
-import zarr.hierarchy
-import zarr.core
+from lmdbm import Lmdb
+from ..ioutil import autoencode, autodecode
 
 
-class TensorStore:
+class AutoStore(collections.abc.MutableMapping):
     def __init__(self, path):
-        self.datapath = pathlib.Path(path)
-        self.root = zarr.open(str(self.datapath), mode="a")
+        self._path = pathlib.Path(path)
 
-    def put(self, data, *args, force=True):
-        path = "/".join(map(str, args))
-        if path in self.root:
-            del self.root[path]
-        self[path] = data
+    @contextmanager
+    def db(self):
+        with Lmdb.open(str(self._path), "c") as db:
+            yield db
 
-    def __setitem__(self, path, data, force=False):
+    @staticmethod
+    def _normalize_key(key):
+        if isinstance(key, tuple):
+            assert all("/" not in k for k in key)
+            key = "/".join(key)
+        key = pathlib.Path(key)
+        if key.suffix == "":
+            key = key.with_suffix(".pkl.lz4")
+        return str(key)
 
-        if force and path in self.root:
-            del self.root[path]
+    def __getitem__(self, key):
+        key = self._normalize_key(key)
+        with self.db() as db:
+            return autodecode(db[key.encode("utf-8")], key)
 
-        if isinstance(data, Tensor):
-            data = data.detach().cpu().numpy()
+    def __setitem__(self, key, value):
+        key = self._normalize_key(key)
+        with self.db() as db:
+            db[key.encode("utf-8")] = autoencode(value, key)
 
-        if isinstance(data, np.ndarray):
-            self.root.create_dataset(path, data=data)
-            return
+    def __len__(self):
+        with self.db() as db:
+            return len(db)
+        with Lmdb.open(str(self._path), "c") as db:
+            return len(db)
 
-        # TODO: add support for dataframes
+    def __iter__(self):
+        with self.db() as db:
+            return iter([k.decode("utf-8") for k in db.keys()])
 
-        if isinstance(data, tuple):
-            data = list(data)
+    def __contains__(self, key):
+        key = self._normalize_key(key)
+        with self.db() as db:
+            return key in db
 
-        if isinstance(data, list):
-            for i, x in enumerate(data):
-                self.put(x, path, i)
-            self.root["path"].attrs["type"] = "list"
-            return
+    def __delitem__(self, key):
+        key = self._normalize_key(key)
+        with self.db() as db:
+            del db[str(key).encode("utf-8")]
 
-        if isinstance(data, dict):
-            for k, v in data.items():
-                self.put(v, path, k)
-            return
+    def __repr__(self):
+        return f"{self.__class__.__name__}({repr(str(self._path))})"
 
-        raise ValueError(f"Cannot save type {type(data)}")
-
-    def get(self, *args):
-        path = "/".join(map(str, args))
-        return self[path]
-
-    def __getitem__(self, path):
-
-        if path != "":
-            x = self.root[path]
-        else:
-            x = self.root
-
-        type_ = x.attrs.get("type", None)
-
-        if type_ == "list":
-            return [self.get(path, i) for i in range(len(self.root))]
-
-        if isinstance(x, zarr.hierarchy.Group):
-            return {k: self.get(path, k) for k in x}
-        if isinstance(x, zarr.core.Array):
-            return x[:]
-
-    def tree(self):
-        # self.root.visit(print)
-        return self.root.tree()
+    def update(self, other):
+        with self.db() as db:
+            for k, v in other.items():
+                k = self._normalize_key(k)
+                db[k.encode("utf-8")] = autoencode(v, k)
