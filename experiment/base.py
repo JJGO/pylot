@@ -1,169 +1,91 @@
 from abc import abstractmethod
-from contextlib import contextmanager
-import datetime
-import hashlib
-import json
-import os
+
 import pathlib
-import random
-import shutil
-import signal
-import string
-import sys
-import time
+
 import yaml
 
-import pandas as pd
+from .util import fix_seed, absolute_import, generate_tuid
 
-from ..util import (
-    dict_recursive_update,
-    expand_dots,
-    get_from_dots,
-    allbut,
-    get_full_env_info,
-    make_path,
-    S3Path,
-    printc,
-    TensorStore,
-    MetricsStore,
-    MetricsDict,
-)
-from ..util.mapping import NODEFAULT
-from .util import fix_seed
+from ..util.metrics import MetricsDict
+from ..util.config import HDict, FHDict, ImmutableConfig, config_digest
+from ..util.ioutil import autosave
+from ..util.libcheck import check_environment
 
 
-class Experiment:
+def eval_callbacks(all_callbacks, experiment):
+    evaluated_callbacks = {}
+    for group, callbacks in all_callbacks.items():
+        evaluated_callbacks[group] = []
+
+        for callback in callbacks:
+            if isinstance(callback, str):
+                cb = absolute_import(callback)(experiment)
+            elif isinstance(callback, dict):
+                assert len(callback) == 1, "Callback must have length 1"
+                callback, kwargs = next(iter(callback.items()))
+                cb = absolute_import(callback)(experiment, **kwargs)
+            else:
+                raise TypeError("Callback must be either str or dict")
+            evaluated_callbacks[group].append(cb)
+    return evaluated_callbacks
 
 
-    def __init__(self, cfg=None, path=None, **kwargs):
-        if path is not None:
-            assert (
-                cfg is None
-            ), "Config must not be provided when loading an existing experiment"
-            assert (
-                kwargs == {}
-            ), "Keyword arguments must not be provided when loading an existing experiment"
-            self._init_existing(path)
-        else:
-            self._init_new(cfg, **kwargs)
+class BaseExperiment:
+    def __init__(self, path):
+        if isinstance(path, str):
+            path = pathlib.Path(path)
+        self.path = path
+        assert path.exists()
+        self.name = self.path.stem
 
-        fix_seed(self.cfg["experiment"]["seed"])
-        # signal.signal(signal.SIGINT, self.SIGINT_handler)
-        # signal.signal(signal.SIGQUIT, self.SIGQUIT_handler)
+        self.config = ImmutableConfig.from_file(path / "config.yml")
+        self.properties = FHDict(self.path / "properties.json")
+        self.metadata = FHDict(self.path / "metadata.json")
         self.metricsd = MetricsDict(self.path)
 
-    def _init_new(self, cfg, uid=None, **kwargs):
+        fix_seed(self.config.get("experiment.seed", 42))
+        check_environment()
 
-        default = {"experiment": {"seed": 42, "type": f"{self.__class__.__name__}"}}
-        # 2. cfg dict or file
-        if cfg is not None:
-            cfg = dict_recursive_update(default, cfg)
-        else:
-            cfg = default
-        # 3. Forced kwargs
-        kwargs = expand_dots(kwargs)
-        self.cfg = dict_recursive_update(cfg, kwargs)
+        self.properties["experiment.class"] = self.__class__.__name__
 
-        if uid is None:
-            uid = self.generate_uid()
-        self.uid = uid
+    @classmethod
+    def from_config(cls, config) -> "BaseExperiment":
+        if isinstance(config, HDict):
+            config = config.to_dict()
 
-        root = self.get_param("log.root", ".")
-        root = make_path(root)
-        self.path = root / self.uid
+        root = pathlib.Path()
+        if "log" in config:
+            root = pathlib.Path(config["log"].get("root", "."))
+        create_time, nonce = generate_tuid()
+        digest = config_digest(config)
+        uuid = f"{create_time}-{nonce}-{digest}"
+        path = root / uuid
+        metadata = {"create_time": create_time, "nonce": nonce, "digest": digest}
+        autosave(metadata, path / "metadata.json")
 
-    def _init_existing(self, path):
-        existing_cfg = pathlib.Path(path) / "config.yml"
-        assert existing_cfg.exists(), "Cannot find config.yml under the provided path"
-        self.path = pathlib.Path(path)
-        with (self.path / "config.yml").open("r") as f:
-            self.cfg = yaml.safe_load(f)
-        self.uid = self.path.stem
-
-    def save_config(self):
-        self.path.mkdir(exist_ok=True, parents=True)
-        path = self.path / "config.yml"
-        with path.open("w") as f:
-            yaml.safe_dump(self.cfg, f, indent=2)
+        autosave(config, path / "config.yml")
+        return cls(str(path.absolute()))
 
     @property
-    def digest(self):
-        cfg = allbut(self.cfg, ("log", "tags"))
-        return hashlib.md5(
-            yaml.safe_dump(cfg, sort_keys=True).encode("utf-8")
-        ).hexdigest()
+    def metrics(self):
+        return self.metricsd["metrics"]
 
     def __hash__(self):
-        return int(self.digest, 16)
-
-    def generate_uid(self):
-        """Returns a time sortable UID
-
-        Computes timestamp and appends unique identifier
-
-        Returns:
-            str -- uid
-        """
-        if hasattr(self, "uid"):
-            return self.uid
-
-        random.seed(time.time())
-        N = 4  # length of nonce
-        now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        nonce = "".join(random.choices(string.ascii_uppercase + string.digits, k=N))
-        return f"{now}-{nonce}-{self.digest}"
-
-    def build_logging(self):
-        assert hasattr(self, "uid"), "UID needs to have been generated first"
-        assert hasattr(self, "path"), "UID needs to have been generated first"
-        self.path.mkdir(exist_ok=True, parents=True)
-        # printc(f"Logging results to {self.path}", color="MAGENTA")
-        print(f"{self.path}")
-
-        self.tensor_store = TensorStore(self.path / "store.zarr")
-
-        # Save environment for repro
-        envinfo_path = self.path / "env.yml"
-        if not envinfo_path.exists():
-            envinfo_path.touch()
-        with envinfo_path.open("a") as f:
-            yaml.safe_dump([get_full_env_info()], f)
-
-        self.save_config()
-
-    # def SIGINT_handler(self, signal, frame):
-    #     pass
-
-    def SIGQUIT_handler(self, signal, frame):
-        self.delete()
-        sys.exit(1)
-
-    def delete(self):
-        if isinstance(self.path, S3Path):
-            self.path.rmtree()
-        else:
-            shutil.rmtree(self.path, ignore_errors=True)
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self.cfg})"
-
-    def __str__(self):
-        return f"{self.__class__.__name__}\n---\n" + yaml.safe_dump(self.cfg, indent=2)
+        return hash(self.path)
 
     @abstractmethod
     def run(self):
         pass
 
-    def resume(self):
-        pass
+    def __repr__(self):
+        return f'{self.__class__.__name__}("{str(self.path)}")'
 
-    def load(self, tag):
-        pass
+    def __str__(self):
+        s = f"{repr(self)}\n---\n"
+        s += yaml.safe_dump(self.config._data, indent=2)
+        return s
 
-    def get_param(self, param, default=NODEFAULT):
-        return get_from_dots(self.cfg, param, default=default)
-
-
-    @property
-    def metrics(self):
-        return self.metricsd["metrics"]
+    def build_callbacks(self):
+        self.callbacks = {}
+        if "callbacks" in self.config:
+            self.callbacks = eval_callbacks(self.config["callbacks"], self)

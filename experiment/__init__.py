@@ -1,5 +1,2 @@
-from .base import Experiment
+from .base import BaseExperiment
 from .train import TrainExperiment
-from .vision import VisionClassificationTrainExperiment
-
-VCTE = VisionClassificationTrainExperiment

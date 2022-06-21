@@ -1,487 +1,234 @@
 import copy
-from collections import defaultdict
-import functools
-import inspect
-import json
-import pathlib
 import sys
-
-from tqdm import tqdm
-import yaml
+import pathlib
 
 import torch
+from torch import nn
 from torch.utils.data import DataLoader
-from torch.backends import cudnn
-import torch.optim
-from torch.optim import lr_scheduler
 
-import torchvision.datasets
-import torchvision.models
-
-
-from .base import Experiment
-from ..datasets import stratified_train_val_split
-from ..loss import flatten_loss
-from ..util import (
-    printc,
-    StatsMeter,
-    StatsTimer,
-    StatsCUDATimer,
-    allbut,
-    make_path,
-    to_device,
-    any_getattr,
-    check_environment
-)
-from .. import callbacks
-from .. import datasets
-from .. import models
-from .. import optim
-from .. import loss as custom_loss
-from .. import metrics
-from ..optim import scheduler as custom_scheduler
-from ..optim.scheduler import WarmupScheduler
+from .base import BaseExperiment
+from .util import eval_config, absolute_import
+from ..util.torchutils import to_device
+from ..util.meter import MeterDict
+from ..util.ioutil import autosave
+from ..nn.util import num_params
 
 
-class TrainExperiment(Experiment):
+class TrainExperiment(BaseExperiment):
+    def __init__(self, path):
+        torch.backends.cudnn.benchmark = True
+        super().__init__(path)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.build_data()
+        self.build_model()
+        self.build_optim()
+        self.build_loss()
+        self.build_metrics()
+        self.build_augmentations()
 
-    MODELS = [torchvision.models, models]
-    DATASETS = [torchvision.datasets, datasets]
-    CALLBACKS = [callbacks]
-    LOSS = [torch.nn, custom_loss]
-    OPTIMS = [torch.optim, optim]
-    SCHEDULERS = [lr_scheduler, custom_scheduler]
-    METRICS = [metrics]
+    def build_data(self):
+        data_cfg = self.config["data"].to_dict()
+        dataset_cls = absolute_import(data_cfg.pop("_class"))
 
-    def __init__(self, cfg=None, **kwargs):
+        self.train_dataset = dataset_cls(split="train", **data_cfg)
+        self.val_dataset = dataset_cls(split="val", **data_cfg)
 
-        # Default children kwargs
-        super().__init__(cfg, **kwargs)
+    def build_dataloader(self):
+        dl_cfg = self.config["dataloader"]
+        self.train_dl = DataLoader(self.train_dataset, shuffle=True, **dl_cfg)
+        self.val_dl = DataLoader(self.val_dataset, shuffle=False, **dl_cfg)
 
-        # Check environment
-        check_environment()
+    def build_model(self):
+        self.model = eval_config(self.config["model"])
+        self.properties["num_params"] = num_params(self.model)
 
-        # Attributes
-        self.train_dataset = None
-        self.val_dataset = None
-        self.train_dl = None
-        self.val_dl = None
-        self.model = None
-        self.loss_func = None
-        self.epochs = None
-        self._epoch = None
-        self.setup_callbacks = None
-        self.batch_callbacks = None
-        self.epoch_callbacks = None
-        self.wrapup_callbacks = None
-        self.metric_fns = None
-        self.device = None
-        self.checkpoint_freq = 1
+    def build_optim(self):
+        optim_cfg = self.config["optim"].to_dict()
+        # TODO add lr_scheduler support
+        # self.lr_scheduler = eval_config(opt_cfg.pop('lr_scheduler', None)
+        optim_cfg["params"] = self.model.parameters()
+        self.optim = eval_config(optim_cfg)
 
-        self.build_data(**self.cfg["data"])
-        self.build_model(**self.cfg["model"])
-        if "loss" in self.cfg:
-            self.build_loss(**self.cfg["loss"])
-        if "losses" in self.cfg:
-            self.build_losses(**self.cfg["losses"])
-        self.build_train(**self.cfg["train"])
-
-    def build_data(self, dataset, val_split=None, **data_kwargs):
-
-        constructor = any_getattr(self.DATASETS, dataset)
-        kwargs = allbut(data_kwargs, ["dataloader"])
-        self.dataset = constructor(train=True, **kwargs)
-        self.test_dataset = constructor(train=False, **kwargs)
-        if val_split is not None:
-            # Replicates should be done for weight initialization, they should not
-            # touch how data is partitioned, for that make use of a fold parameter
-            # in the dataset and split using sklearn or something
-            self.train_dataset, self.val_dataset = stratified_train_val_split(
-                self.dataset, val_split, seed=data_kwargs.get("seed", 42)
-            )
-        else:
-            self.train_dataset = self.dataset
-            self.val_dataset = self.test_dataset
-
-        self.build_dataloader(**data_kwargs["dataloader"])
-
-    def build_dataloader(self, **dataloader_kwargs):
-
-        self.train_dl = DataLoader(
-            self.train_dataset, shuffle=True, **dataloader_kwargs
-        )
-        shuffle_val = self.get_param("data.dataloader.shuffle_val", False)
-        self.val_dl = DataLoader(
-            self.val_dataset, shuffle=shuffle_val, **dataloader_kwargs
-        )
-        self.test_dl = DataLoader(self.test_dataset, shuffle=False, **dataloader_kwargs)
-
-    def build_model(self, model, weights=None, **model_kwargs):
-        constructor = any_getattr(self.MODELS, model)
-        self.model = constructor(**model_kwargs)
-
-        if weights is not None:
-            with make_path(weights).open("rb") as f:
-                self.load_model(
-                    torch.load(
-                        f,
-                        map_location=(
-                            None if torch.cuda.is_available() else torch.device("cpu")
-                        ),
-                    )
-                )
-
-    def build_loss(self, loss_func=None, **loss_kwargs):
-        if loss_func == "MultiLoss":
-            losses = []
-            for sub_loss in loss_kwargs["losses"]:
-                sub_loss_func = sub_loss.pop("loss_func")
-                losses.append(any_getattr(self.LOSS, sub_loss_func)(**sub_loss))
-            loss_kwargs["losses"] = losses
-        loss_func = any_getattr(self.LOSS, loss_func)(**loss_kwargs)
-
-        self.loss_func = loss_func
-
-    def build_losses(self, **losses):
-        losses = copy.deepcopy(losses)
-        self.losses = {}
-        self.loss_weights = {}
-        for name, loss_kwargs in losses.items():
-            self.loss_weights[name] = loss_kwargs.pop("loss_weight", 1)
-            loss_func = loss_kwargs.pop("loss_func")
-            self.losses[name] = any_getattr(self.LOSS, loss_func)(**loss_kwargs)
-
-    def build_train(
-        self,
-        optim,
-        epochs,
-        scheduler=None,
-        warmup=None,
-        accumulate_gradients=None,
-        **train_kws,  # Extra parameters that are manually retrieved with self.get_param
-    ):
-
-        self.epochs = epochs
-        self.accumulate_gradients = accumulate_gradients
-
-        # Optim
-        if isinstance(optim, dict):
-            optim, optim_kwargs = optim["optim"], allbut(optim, ["optim", "state"])
-            constructor = any_getattr(self.OPTIMS, optim)
-            optim = constructor(self.model.parameters(), **optim_kwargs)
-        self.optim = optim
-        optim_state = self.get_param("train.optim.state", None)
-        if optim_state:
-            self.load_optim(optim_state)
-
-        # Scheduler
-        self.scheduler = scheduler
-        if scheduler is not None:
-            scheduler, scheduler_kwargs = (
-                scheduler["scheduler"],
-                allbut(scheduler, ["scheduler", "state"]),
-            )
-            constructor = any_getattr(self.SCHEDULERS, scheduler)
-            self.scheduler = constructor(self.optim, **scheduler_kwargs)
-
-        if warmup is not None:
-            warmup_period = len(self.train_dl) * warmup
-            # We jump the scheduler ahead so warmup reaches the correct point
-            self.scheduler = WarmupScheduler(warmup_period, self.scheduler, skip=warmup)
-
-        scheduler_state = self.get_param("train.scheduler.state", None)
-        if scheduler_state:
-            self.load_scheduler(scheduler_state)
-
-    def _load_module(self, checkpoint, module, ignore_missing=False):
-        # assert checkpoint.exists(), f"Checkpoint path {checkpoint} does not exist"
-        # checkpoint = torch.load(checkpoint)
-        checkpoint = self._path_to_checkpoint(checkpoint)
-        if module == "model":
-            getattr(self, module).load_state_dict(
-                checkpoint[f"{module}_state_dict"], strict=not ignore_missing
-            )
-        else:
-            getattr(self, module).load_state_dict(checkpoint[f"{module}_state_dict"])
-
-    def load_model(self, checkpoint, ignore_missing=False):
-        self._load_module(checkpoint, "model", ignore_missing=ignore_missing)
-
-    def load_optim(self, checkpoint):
-        self._load_module(checkpoint, "optim")
-
-    def load_scheduler(self, checkpoint):
-        self._load_module(checkpoint, "scheduler")
-
-    def to_device(self, device=None):
-        # Torch CUDA config
-        if device:
-            self.device = device
-        elif self.device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        if not torch.cuda.is_available():
-            printc("GPU NOT AVAILABLE, USING CPU!", color="RED")
-        self.model.to(self.device)
-        if isinstance(self.loss_func, torch.nn.Module):
-            self.loss_func.to(self.device)
-        cudnn.benchmark = True  # For fast training.
-
-    @property
-    def checkpoint_path(self):
-        return self.path / "checkpoints"
-
-    def checkpoint(self, tag=None):
-        self.checkpoint_path.mkdir(exist_ok=True, parents=True)
-
-        tag = tag if tag is not None else "last"
-        printc(f"Checkpointing with tag:{tag} at epoch:{self._epoch}", color="BLUE")
-        checkpoint_file = f"{tag}.pt"
-        state = {
-            "model_state_dict": self.model.state_dict(),
-            "optim_state_dict": self.optim.state_dict(),
-            "epoch": self._epoch,
-        }
-        if self.scheduler is not None:
-            state["scheduler_state_dict"] = self.scheduler.state_dict()
-
-        with (self.checkpoint_path / checkpoint_file).open("wb") as f:
-            torch.save(state, f)
-
-    def load(self, tag=None):
-        self.build_logging()
-        self.to_device()
-        # Load model & optimizer
-        if not self.checkpoint_path.exists():
-            printc("No checkpoints were found", color="ORANGE")
-            self._epoch = 0
-            return
-        self.reload(tag=tag)
-
-    def _path_to_checkpoint(self, path):
-        if isinstance(path, pathlib.Path):
-            with path.open("rb") as f:
-                checkpoint = torch.load(
-                    f,
-                    map_location=(
-                        None if torch.cuda.is_available() else torch.device("cpu")
-                    ),
-                )
-            return checkpoint
-        return path
-
-    def reload(self, tag=None, ignore_missing=False):
-        tag = tag if tag is not None else "last"
-        checkpoint = self._path_to_checkpoint(self.checkpoint_path / f"{tag}.pt")
-        self._epoch = checkpoint["epoch"]
-        self.load_model(checkpoint, ignore_missing=ignore_missing)
-        self.load_optim(checkpoint)
-        if self.scheduler is not None:
-            self.load_scheduler(checkpoint)
-        printc(
-            f"Loaded checkpoint with tag:{tag}. Last epoch:{self._epoch}", color="BLUE"
-        )
+    def build_loss(self):
+        self.loss_func = eval_config(self.config["loss_func"])
 
     def build_metrics(self):
-
         self.metric_fns = {}
+        if "log.metrics" in self.config:
+            self.metric_fns = eval_config(copy.deepcopy(self.config["log.metrics"]))
 
-        for metric in self.get_param("log.metrics"):
-            if isinstance(metric, str):
-                f = any_getattr(self.METRICS, metric)
-            elif isinstance(metric, dict):
-                assert len(metric) == 1
-                metric, kwargs = next(iter(metric.items()))
-                f = any_getattr(self.METRICS, metric)
-                if inspect.isfunction(f):
-                    f = functools.partial(f, **kwargs)
+    def build_initialization(self):
+        if "initialization" in self.config:
+            init_cfg = self.config["initialization"].to_dict()
+            path = pathlib.Path(init_cfg["path"])
+            with path.open("rb") as f:
+                state = torch.load(f, map_location=self.device)
+            if not init_cfg.get("optim", True):
+                state.pop("optim", None)
+            strict = init_cfg.get("strict", True)
+            self.set_state(state, strict=strict)
+            print(f"Loaded initialization state from: {path}")
+
+    @property
+    def state(self):
+        return {
+            "model": self.model.state_dict(),
+            "optim": self.optim.state_dict(),
+            "_epoch": self.properties["epoch"],
+        }
+
+    def set_state(self, state, strict=True):
+        for attr, state_dict in state.items():
+            if not attr.startswith("_"):
+                x = getattr(self, attr)
+                if isinstance(x, nn.Module):
+                    x.load_state_dict(state_dict, strict=strict)
+                elif isinstance(x, torch.optim.Optimizer):
+                    x.load_state_dict(state_dict)
                 else:
-                    f = f(**kwargs)
-            else:
-                raise TypeError(f"metric cannot be of type {type(metric)}")
+                    raise TypeError(f"Unsupported type {type(x)}")
 
-            self.metric_fns[metric] = f
+    def checkpoint(self, tag=None):
+        self.properties["epoch"] = self._epoch
 
-    def build_logging(self):
-        super().build_logging()
+        checkpoint_dir = self.path / "checkpoints"
+        checkpoint_dir.mkdir(exist_ok=True)
 
-        self.checkpoint_freq = self.get_param("log.checkpoint_freq", 1)
+        tag = tag if tag is not None else "last"
+        print(f"Checkpointing with tag:{tag} at epoch:{self._epoch}")
 
-        # Callbacks
-        if "log" in self.cfg:
+        with (checkpoint_dir / f"{tag}.pt").open("wb") as f:
+            torch.save(self.state, f)
 
-            for category in ["setup", "batch", "epoch", "wrapup"]:
-                category = f"{category}_callbacks"
-                callbacks = []
-                if category in self.cfg["log"]:
+    @property
+    def checkpoints(self, as_paths=False) -> list[str]:
+        checkpoints = list((self.path / "checkpoints").iterdir())
+        checkpoints = sorted(checkpoints, key=lambda x: x.stat().st_mtime, reverse=True)
+        if as_paths:
+            return checkpoints
+        return [c.stem for c in checkpoints]
 
-                    for cb in self.cfg["log"][category]:
-                        if isinstance(cb, str):
-                            k, args = cb, {}
-                        else:
-                            assert len(cb) == 1
-                            k, args = next(iter(cb.items()))
-                        callbacks.append(any_getattr(self.CALLBACKS, k)(self, **args))
+    def load(self, tag=None):
+        checkpoint_dir = self.path / "checkpoints"
+        tag = tag if tag is not None else "last"
+        with (checkpoint_dir / f"{tag}.pt").open("rb") as f:
+            state = torch.load(f, map_location=self.device)
+            self.set_state(state)
+        print(
+            f"Loaded checkpoint with tag:{tag}. Last epoch:{self.properties['epoch']}"
+        )
 
-                setattr(self, category, callbacks)
+    def to_device(self):
+        self.model = to_device(self.model, self.device)
 
-            if "metrics" in self.cfg["log"]:
-                self.build_metrics()
+    def run_callbacks(self, callback_group, **kwargs):
+        with torch.no_grad():
+            for callback in self.callbacks.get(callback_group, []):
+                callback(**kwargs)
 
-    def run_epochs(self, start=0, end=None):
-        end = self.epochs if end is None else end
-        try:
-            for epoch in range(start, end):
-                printc(f"Start epoch {epoch}", color="YELLOW")
-                self._epoch = epoch
-                if self.checkpoint_freq > 0 and epoch % self.checkpoint_freq == 0:
-                    self.checkpoint(tag="last")
-                self.train(epoch)
-                self.eval(epoch)
-                if self.scheduler:
-                    self.scheduler.step()
+    def run(self):
+        self.build_dataloader()
+        self.build_callbacks()
+        self.to_device()
 
-                with torch.no_grad():
-                    for cb in self.epoch_callbacks:
-                        cb(epoch)
+        print(f"Running {str(self)}")
+        epochs: int = self.config["train.epochs"]
 
-            self.test(end)
+        last_epoch: int = self.properties.get("epoch", -1)
+        if last_epoch >= 0:
+            self.load(tag="last")
+            df = self.metrics.df
+            autosave(df[df.epoch < last_epoch], self.path / "metrics.jsonl")
+        else:
+            self.build_initialization()
 
-            for cb in self.wrapup_callbacks:
-                cb()
+        self.to_device()
+        self.optim.zero_grad()
 
-            self.checkpoint(tag="last")
+        checkpoint_freq: int = self.config.get("log.checkpoint_freq", 1)
+        eval_freq: int = self.config.get("train.eval_freq", 1)
 
-        except KeyboardInterrupt:
-            printc(f"\nInterrupted at epoch {epoch}. Tearing Down", color="RED")
-            self.checkpoint(tag="interrupt")
-            sys.exit(1)
+        self.run_callbacks("setup")
 
-    def run_epoch(self, phase, epoch=0):
-        progress = self.get_param("log.progress", False)
-        timing = self.get_param("log.timing", False)
+        # try:
+
+        for epoch in range(last_epoch + 1, epochs):
+            print(f"Start epoch {epoch}")
+            self._epoch = epoch
+            self.run_phase("train", epoch)
+            if epoch % eval_freq == 0 or epoch == epochs - 1:
+                self.run_phase("val", epoch)
+
+            if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
+                self.checkpoint()
+            self.run_callbacks("epoch", epoch=epoch)
+
+        self.checkpoint(tag="last")
+
+        self.run_callbacks("wrapup")
+
+        # except KeyboardInterrupt:
+        #     print(f"Interrupted at epoch {epoch}. Tearing Down")
+        #     self.checkpoint(tag="interrupt")
+        #     sys.exit(1)
+
+    def run_phase(self, phase, epoch):
 
         dl = getattr(self, f"{phase}_dl")
 
         grad_enabled = phase == "train"
+        augmentation = (phase == "train") and ("augmentations" in self.config)
 
-        if grad_enabled:
-            self.model.train()
-        else:
-            self.model.eval()
-
-        meters = defaultdict(StatsMeter)
-        timercls = StatsCUDATimer if torch.cuda.is_available() else StatsTimer
-        timer = timercls(unit="ms", skip=10)
-        if not timing:
-            timer.disable()
-
-        epoch_iter = iter(dl)
-        if progress:
-            epoch_progress = tqdm(epoch_iter)
-            epoch_progress.set_description(
-                f"{phase.capitalize()} Epoch {epoch}/{self.epochs}"
-            )
-            epoch_iter = iter(epoch_progress)
-
-        self.before_epoch(phase, epoch)
+        meters = MeterDict()
 
         with torch.set_grad_enabled(grad_enabled):
-            for batch_idx in range(len(dl)):
-                self.before_batch(phase, epoch, batch_idx)
-                outputs = self.run_step(phase, next(epoch_iter), batch_idx, timer)
-                self.compute_metrics(phase, meters, outputs)
+            for batch_idx, batch in enumerate(dl):
+                outputs = self.run_step(
+                    batch_idx, batch, backward=grad_enabled, augmentation=augmentation
+                )
+                metrics = self.compute_metrics(outputs)
+                meters.update(metrics)
+                self.run_callbacks("batch", epoch=epoch, batch_idx=batch_idx)
 
-                postfix = {k: v.mean for k, v in meters.items()}
-
-                for cb in self.batch_callbacks:
-                    cb(phase, epoch, batch_idx, postfix)
-
-                if progress:
-                    epoch_progress.set_postfix(postfix)
-
-                self.after_batch(phase, epoch, batch_idx)
-
-        metrics = {k: v.mean for k, v in meters.items()}
-
-        if phase == "train":
-            metrics["lr"] = self.optim.param_groups[0]["lr"]
-            if timing:
-                for k, t in timer.measurements:
-                    metrics[f"{k}_mean"] = t.mean
-                    metrics[f"{k}_std"] = t.std
-
-        metrics.update(dict(epoch=epoch, phase=phase))
-        self.metrics.dump(metrics)
-        self.after_epoch(phase, epoch)
-
+        metrics = {"phase": phase, "epoch": epoch, **meters.collect("mean")}
+        self.metrics.log(metrics)
         return metrics
 
-    def run_step(self, phase, batch, batch_idx, timer=None):
-        if timer is None:
-            timer = StatsTimer().disable()
-        with timer("t_data"):
-            x, y = to_device(batch, self.device)
-        with timer("t_forward"):
-            yhat = self.model(x)
-            loss = self.loss_func(yhat, y)
-        if phase == "train":
-            with timer("t_backward"):
-                loss.backward()
-            with timer("t_optim"):
-                if isinstance(self.scheduler, WarmupScheduler):
-                    self.scheduler.warmup_step()
-                if (
-                    self.accumulate_gradients is None
-                    or (batch_idx + 1) % self.accumulate_gradients == 0
-                ):
-                    self.optim.step()
-                    self.optim.zero_grad()
+    def run_step(self, batch_idx, batch, backward=True, augmentation=True):
 
-        return dict(loss=loss, y=y, yhat=yhat)
+        x, y = to_device(batch, self.device)
 
-    def compute_metrics(self, phase, meters, outputs):
-        loss, y, yhat = outputs["loss"], outputs["y"], outputs["yhat"]
-        meters["loss"].add(loss.item())
-        if self.metric_fns:
-            for name, f in self.metric_fns.items():
-                val = f(yhat, y)
-                if isinstance(val, torch.Tensor):
-                    val = val.item()
-                meters[name].add(val)
+        if augmentation:
+            with torch.no_grad():
+                x, y = self.aug_pipeline(x, y)
 
-    def before_batch(self, phase, epoch, batch_idx):
+        yhat = self.model(x)
+        loss = self.loss_func(yhat, y)
+
+        if backward:
+            loss.backward()
+            self.optim.step()
+            self.optim.zero_grad()
+
+        return {"loss": loss, "ytrue": y, "ypred": yhat}
+
+    def compute_metrics(self, outputs):
+        metrics = {"loss": outputs["loss"].item()}
+        for name, fn in self.metric_fns.items():
+            value = fn(outputs["ypred"], outputs["ytrue"])
+            if isinstance(value, torch.Tensor):
+                value = value.item()
+            metrics[name] = value
+        return metrics
+
+    def build_augmentations(self):
+        # if "augmentations" in self.config:
+        #     aug_cfg = self.config.to_dict()["augmentations"]
+        #     self.aug_pipeline = augmentations_from_config(aug_cfg)
         pass
 
-    def after_batch(self, phase, epoch, batch_idx):
-        pass
 
-    def before_epoch(self, phase, epoch):
-        pass
-
-    def after_epoch(self, phase, epoch):
-        pass
-
-    def train(self, epoch=0):
-        return self.run_epoch("train", epoch)
-
-    def eval(self, epoch=0):
-        return self.run_epoch("val", epoch)
-
-    def test(self, epoch=0):
-        return self.run_epoch("test", epoch)
-
-    def run(self, resume=False):
-        if not resume:
-            self.to_device()
-            self.build_logging()
-            printc(f"Running {str(self)}", color="YELLOW")
-            self.run_epochs()
-        else:
-            self.load()
-            self.resume()
-
-    def resume(self):
-        last_epoch = self._epoch
-        printc(f"Resuming from start of epoch {last_epoch}", color="YELLOW")
-        printc(f"Running {str(self)}", color="YELLOW")
-        self.run_epochs(start=last_epoch)
+# Example use:
+# >>> from universeg.experiment import TrainExperiment
+# >>> exp =  TrainExperiment.from_config(config)
+# >>> exp.run()
