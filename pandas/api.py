@@ -164,3 +164,16 @@ def constants_subset(df: DataFrame, **selector):
     sub_df = df.select(**selector)
     sub_constants = sub_df.constants()
     return sub_constants[~sub_constants.index.isin(set(df.constants().index))]
+
+
+@register_dataframe_method
+def smooth(df, column, *, group_by=("path", "phase"), alpha=None, window=None):
+    if alpha is not None:
+        return df.groupby(list(group_by))[column].transform(
+            lambda x: x.ewm(alpha=alpha).mean()
+        )
+    elif window is not None:
+        return df.groupby(list(group_by))[column].transform(
+            lambda x: x.rolling(window, center=True).mean()
+        )
+    raise ValueError("Either alpha or window must be specified")
