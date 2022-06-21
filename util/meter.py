@@ -1,23 +1,25 @@
-from abc import abstractmethod
 import itertools
+from abc import abstractmethod
+from typing import Union, Iterable
 from heapq import heappop, heappush
-import numpy as np
-# from collections import defaultdict
+from collections import defaultdict
 
-from .csvlogger import CSVLogger
+import numpy as np
+
+Numeric = Union[np.ndarray, int, float]
+Numerics = Union[Iterable[Numeric]]
 
 
 class Meter:
-
     def __init__(self, iterable=None):
         if iterable is not None:
             self.addN(iterable)
 
     @abstractmethod
-    def add(self, datum):
+    def add(self, datum: Numeric):
         pass
 
-    def addN(self, iterable):
+    def addN(self, iterable: Numerics):
         for datum in iterable:
             self.add(datum)
 
@@ -31,7 +33,7 @@ class StatsMeter(Meter):
     https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#On-line_algorithm
     """
 
-    def __init__(self, iterable=None):
+    def __init__(self, iterable: Numerics = None):
         """Online Mean and Variance from single samples
 
         Running stats,
@@ -40,12 +42,12 @@ class StatsMeter(Meter):
         Keyword Arguments:
             iterable {[iterable} -- Values to initialize (default: {None})
         """
-        self.n = 0
-        self.mean = 0.0
-        self.S = 0.0
+        self.n: int = 0
+        self.mean: Numeric = 0.0
+        self.S: Numeric = 0.0
         super().__init__(iterable)
 
-    def add(self, datum):
+    def add(self, datum: Numeric):
         """Add a single datum
 
         Internals are updated using Welford's method
@@ -60,7 +62,7 @@ class StatsMeter(Meter):
         # Sk = Sk-1 + (xk – Mk-1)*(xk – Mk).
         self.S += delta * (datum - self.mean)
 
-    def addN(self, iterable, batch=False):
+    def addN(self, iterable: Numerics, batch: bool = False):
         """Add N data to the stats
 
         Arguments:
@@ -71,12 +73,14 @@ class StatsMeter(Meter):
             the new array using numpy and then that updates the current stats
         """
         if batch:
-            add = self + StatsMeter.from_values(len(iterable), np.mean(iterable), np.std(iterable))
+            add = self + StatsMeter.from_values(
+                len(iterable), np.mean(iterable), np.std(iterable)
+            )
             self.n, self.mean, self.S = add.n, add.mean, add.S
         else:
             super().addN(iterable)
 
-    def pop(self, datum):
+    def pop(self, datum: Numeric):
         if self.n == 0:
             raise ValueError("Stats must be non empty")
 
@@ -87,7 +91,7 @@ class StatsMeter(Meter):
         # Sk-1 = Sk - (xk – Mk-1) * (xk – Mk)
         self.S -= (datum - self.mean) * delta
 
-    def popN(self, iterable, batch=False):
+    def popN(self, iterable: Numerics, batch: bool = False):
         if batch:
             raise NotImplementedError
         else:
@@ -95,54 +99,44 @@ class StatsMeter(Meter):
                 self.pop(datum)
 
     @property
-    def variance(self):
+    def variance(self) -> Numeric:
         # For 2 ≤ k ≤ n, the kth estimate of the variance is s2 = Sk/(k – 1).
         return self.S / self.n
 
     @property
-    def std(self):
+    def std(self) -> Numeric:
         return np.sqrt(self.variance)
 
-    @property
-    def flatmean(self):
-        # for datapoints which are arrays
-        return np.mean(self.mean)
-
-    @property
-    def flatvariance(self):
-        # for datapoints which are arrays
-        return np.mean(self.variance + self.mean**2) - self.flatmean**2
-
-    @property
-    def flatstd(self):
-        return np.sqrt(self.flatvariance)
-
     @staticmethod
-    def from_values(n, mean, std):
+    def from_values(n: int, mean: float, std: float) -> "StatsMeter":
         stats = StatsMeter()
         stats.n = n
         stats.mean = mean
-        stats.S = std**2 * n
+        stats.S = std ** 2 * n
         return stats
 
     @staticmethod
-    def from_raw_values(n, mean, S):
+    def from_raw_values(n: int, mean: float, S: float) -> "StatsMeter":
         stats = StatsMeter()
         stats.n = n
         stats.mean = mean
         stats.S = S
         return stats
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"n={self.n}  mean={self.mean}  std={self.std}"
 
-    def __repr__(self):
-        return "StatsMeter.from_values(" + \
-               f"n={self.n}, mean={self.mean}, " + \
-               f"std={self.std})"
+    def __repr__(self) -> str:
+        if self.n == 0:
+            return f"{self.__class__.__name__}()"
+        return (
+            f"{self.__class__.__name__}.from_values("
+            + f"n={self.n}, mean={self.mean}, "
+            + f"std={self.std})"
+        )
 
-    def __add__(self, other):
-        """Adding can be done with int|float or other Online Stats
+    def __add__(self, other: Union[Numeric, "StatsMeter"]) -> "StatsMeter":
+        """Adding can be done with int|float or other StatsMeter objects
 
         For other int|float, it is added to all previous values
 
@@ -174,47 +168,64 @@ class StatsMeter(Meter):
     def __sub__(self, other):
         raise NotImplementedError
 
-    def __mul__(self, k):
+    def __mul__(self, k: Union[float, int]) -> "StatsMeter":
         # Multiply all values seen by some constant
-        return StatsMeter.from_raw_values(self.n, self.mean * k, self.S * k**2)
+        return StatsMeter.from_raw_values(self.n, self.mean * k, self.S * k ** 2)
 
-    def asdict(self):
-        return {'mean': self.mean, 'std': self.std, 'n': self.n}
-
-
-class MaxMinMeter(Meter):
-
-    def __init__(self, iterable=None):
-        self.n = 0
-        self.max_ = float('-inf')
-        self.min_ = float('inf')
-        super().__init__(iterable)
-
-    def add(self, datum):
-        self.n += 1
-        self.max_ = max(datum, self.max_)
-        self.min_ = min(datum, self.min_)
+    def asdict(self) -> dict:
+        return {"mean": self.mean, "std": self.std, "n": self.n}
 
     @property
-    def max(self):
-        return self.max_
+    def flatmean(self) -> float:
+        # for datapoints which are arrays
+        return np.mean(self.mean)
 
     @property
-    def min(self):
-        return self.min_
+    def flatvariance(self) -> float:
+        # for datapoints which are arrays
+        return np.mean(self.variance + self.mean ** 2) - self.flatmean ** 2
 
-    def asdict(self):
-        return {'min': self.min, 'max': self.max}  #, 'n': self.n}
+    @property
+    def flatstd(self) -> float:
+        return np.sqrt(self.flatvariance)
+
+
+class MeterDict(dict):
+    def __init__(self, meter_type=StatsMeter):
+        self._meter_type = meter_type
+        super().__init__()
+
+    def update(self, data):
+        for label, value in data.items():
+            self[label].add(value)
+
+    def __setitem__(self, key, value):
+        if key not in self:
+            self[key]
+        self[key].add(value)
+
+    def __getitem__(self, key):
+        if key not in self:
+            super().__setitem__(key, self._meter_type())
+        return super().__getitem__(key)
+
+    def collect(self, attr):
+        return {label: getattr(meter, attr) for label, meter in self.items()}
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({repr(dict(self))})"
+
+    def add(self, label, value):
+        self[label].add(value)
 
 
 class MedianMeter(Meter):
-
-    def __init__(self, iterable=None):
+    def __init__(self, iterable: Iterable[float] = None):
         self.upper = []
         self.lower = []
         super().__init__(iterable)
 
-    def add(self, datum):
+    def add(self, datum: float):
         if len(self.lower) == 0 or datum <= -self.lower[0]:
             heappush(self.lower, -datum)
         else:
@@ -225,94 +236,18 @@ class MedianMeter(Meter):
             heappush(self.upper, -heappop(self.lower))
 
     @property
-    def median(self):
+    def median(self) -> float:
         if len(self.upper) == len(self.lower):
             return (self.upper[0] - self.lower[0]) / 2
         elif len(self.upper) > len(self.lower):
             return self.upper[0]
         else:
-            return - self.lower[0]
+            return -self.lower[0]
 
     @property
-    def mad(self):
+    def mad(self) -> float:
         m = self.median
         return np.median([abs(m - x) for x in itertools.chain(self.upper, self.lower)])
 
-    def asdict(self):
-        return {'median': self.median, 'mad': self.mad}
-
-
-class UnionMeter(Meter):
-
-    def __init__(self, meters, iterable=None):
-        assert all(isinstance(m, Meter) for m in meters)
-        self.meters = meters
-        super().__init__(iterable)
-
-    def add(self, datum):
-        for m in self.meters:
-            m.add(datum)
-
-    def asdict(self):
-        d = {}
-        for meter in self.meters:
-            d.update(meter.asdict())
-        return d
-
-    def __getattr__(self, attr):
-        for meter in self.meters:
-            if hasattr(meter, attr):
-                return getattr(meter, attr)
-        else:
-            raise AttributeError(f"No meter has attribute {attr}")
-
-    @staticmethod
-    def union(*meter_types):
-        assert all(issubclass(m, Meter) for m in meter_types)
-
-        def constructor():
-            return UnionMeter([mt() for mt in meter_types])
-
-        return constructor
-
-
-# class StatsMeterMap:
-
-#     def __init__(self, *keys):
-#         self.stats = defaultdict(StatsMeter)
-#         if keys is not None:
-#             self.register(*keys)
-
-#     def register(self, *keys):
-#         for k in keys:
-#             self.stats[k]
-
-#     def __iter__(self):
-#         return self.stats
-
-#     def __str__(self):
-#         s = "Stats"
-#         max_len = max(len(k) for k in self.stats)
-#         for k in self:
-#             s += f'  {k:>{max_len}s}:  {str(self.stats[k])}'
-
-
-class MeterCSVLogger(CSVLogger):
-
-    def set(self, *args, **kwargs):
-
-        def _flatten_stats(mapping):
-            new = {}
-            for k, v in mapping.items():
-                if isinstance(v, Meter):
-                    for param, v2 in v.asdict().items():
-                        new[f"{k}_{param}"] = v2
-                else:
-                    new[k] = v
-
-            return new
-
-        args = [_flatten_stats(mapping) for mapping in args]
-        kwargs = _flatten_stats(kwargs)
-
-        super().set(*args, **kwargs)
+    def asdict(self) -> dict:
+        return {"median": self.median, "mad": self.mad}
