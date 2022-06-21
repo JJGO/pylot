@@ -1,5 +1,19 @@
-from functools import wraps
+import functools
 import inspect
+import copy
+
+
+def partial(f, *args, order=None, **kwargs):
+    "Like `functools.partial` but also copies over docstring and name"
+    fnew = functools.partial(f, *args, **kwargs)
+    fnew.__doc__ = f.__doc__
+    fnew.__name__ = f.__name__
+    if order is not None:
+        fnew.order = order
+    elif hasattr(f, "order"):
+        fnew.order = f.order
+    return fnew
+
 
 # Decorator that lets you have attributes in functions
 # to keep track of persistent state without requiring
@@ -18,17 +32,19 @@ def static_vars(**kwargs):
 # object but the implementation can be transparent to that
 # https://kracekumar.com/post/100897281440/fluent-interface-in-python/
 def newobj(method):
-    @wraps(method)
+    @functools.wraps(method)
     # Well, newobj can be decorated with function, but we will cover the case
     # where it decorated with method
     def inner(self, *args, **kwargs):
         obj = self.__class__.__new__(self.__class__)
-        obj.__dict__ = self.__dict__.copy()
+        obj.__dict__ = copy.deepcopy(self.__dict__)
         method(obj, *args, **kwargs)
         return obj
 
     return inner
 
+
+#################################################
 
 def _assign_args(instance, args, kwargs, function):
     def set_attribute(instance, parameter, default_arg):
