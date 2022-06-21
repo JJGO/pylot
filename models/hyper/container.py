@@ -47,3 +47,8 @@ class HyperModule(nn.Module):
 
 HyperModule.register_hypernet(HyperNet)
 HyperModule.register_hypernet(DeltaHyperNet)
+
+
+from .norm import NormHyperNet
+
+HyperModule.register_hypernet(NormHyperNet)

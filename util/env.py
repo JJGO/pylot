@@ -171,6 +171,7 @@ def get_full_env_info():
     # PyTorch env
     env_namedtuple = get_env_info()
     pytorch_env = dict(env_namedtuple._asdict())
+    pytorch_env['torch_version'] = str(pytorch_env['torch_version'])
     if pytorch_env["pip_packages"] is not None:
         pytorch_env["pip_packages"] = {
             k: v

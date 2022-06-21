@@ -7,7 +7,6 @@ from ...nn.init import initialize_layer
 from typing import List, Optional, Union
 
 
-
 class ConvBlock(nn.Module):
     def __init__(
         self,

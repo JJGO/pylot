@@ -1,10 +1,11 @@
-from collections import defaultdict
+from collections import defaultdict, deque
 from contextlib import contextmanager
 import functools
 import time
 
 import torch
 import torch.cuda
+import pandas as pd
 
 from .meter import StatsMeter
 
@@ -15,19 +16,21 @@ class Timer:
     def __init__(self, verbose=False, unit="s"):
         self.verbose = verbose
         self._measurements = {}
-        self.reset()
         self.unit = unit
         self._factor = UNIT_FACTORS[unit]
         self.enabled = True
 
     def reset(self):
         self._measurements.clear()
+        return self
 
     def enable(self):
         self.enabled = True
+        return self
 
     def disable(self):
         self.enabled = False
+        return self
 
     @contextmanager
     def __call__(self, label=""):
@@ -40,12 +43,12 @@ class Timer:
             yield
 
     def _save(self, label, elapsed):
-        self._print(f"{label} took {elapsed}{self.unit}")
+        if self.verbose:
+            self._print(f"{label} took {elapsed:.2g}{self.unit}")
         self._measurements[label] = elapsed * self._factor
 
     def _print(self, *args, **kwargs):
-        if self.verbose:
-            print(*args, **kwargs)
+        print(*args, **kwargs)
 
     @property
     def measurements(self):
@@ -62,6 +65,51 @@ class Timer:
 
         return timed_func
 
+    def __getitem__(self, label):
+        return self._measurements[label]
+
+
+class HistoryTimer(Timer):
+    def __init__(self, verbose=False, unit="s", skip=0, max_history=0):
+        super().__init__(verbose=verbose, unit=unit)
+        self._measurements = defaultdict(deque)
+        self._skip = defaultdict(lambda: skip)
+        self.max_history = max_history
+
+    def _save(self, label, elapsed):
+        if self._skip[label] > 0:
+            self._skip[label] -= 1
+            if self.verbose:
+                self._print(f"{label} took {elapsed}{self.unit} (skipped)")
+        else:
+            self._measurements[label].append(elapsed * self._factor)
+            if (
+                self.max_history > 0
+                and len(self._measurements[label]) > self.max_history
+            ):
+                self._measurements[label].popleft()
+            if self.verbose:
+                self._print(f"{label} took {elapsed}{self.unit}")
+
+    def reset(self):
+        self._measurements = defaultdict(deque)
+        self._skip.clear()
+
+    # def wrap_generator(self, generator, label=None):
+    #     if label is None:
+    #         label = "_iter"
+
+    #     it = iter(generator)
+
+    #     def timed_generator():
+    #         while
+    #         # while True:
+    #         #         item = next(it)
+    #         #     with self(label):
+    #         #     yield item
+
+    #     return timed_generator()
+
 
 class StatsTimer(Timer):
     def __init__(self, verbose=False, unit="s", skip=0, n_samples=None):
@@ -70,6 +118,7 @@ class StatsTimer(Timer):
         if n_samples is None:
             n_samples = float("inf")
         self.n_samples = n_samples
+        self._measurements = defaultdict(StatsMeter)
 
     def reset(self):
         self._measurements = defaultdict(StatsMeter)
@@ -78,10 +127,12 @@ class StatsTimer(Timer):
     def _save(self, label, elapsed):
         if self._skip[label] > 0:
             self._skip[label] -= 1
-            self._print(f"{label} took {elapsed}{self.unit} (skipped)")
+            if self.verbose:
+                self._print(f"{label} took {elapsed}{self.unit} (skipped)")
         else:
             self._measurements[label].add(elapsed * self._factor)
-            self._print(f"{label} took {elapsed}{self.unit}")
+            if self.verbose:
+                self._print(f"{label} took {elapsed}{self.unit}")
 
     def skip(self, label, instances=1):
         self._skip[label] += instances
@@ -96,6 +147,14 @@ class StatsTimer(Timer):
         else:
             yield
 
+    def measurements_df(self):
+        rows = []
+        for label, stats in self._measurements.items():
+            rows.append(
+                {"label": label, "mean": stats.mean, "std": stats.std, "n": stats.n}
+            )
+        return pd.DataFrame.from_records(rows)
+
 
 class StatsCUDATimer(StatsTimer):
     def __init__(self, verbose=False, unit="s", skip=0, n_samples=None):
@@ -103,7 +162,7 @@ class StatsCUDATimer(StatsTimer):
         super().__init__(
             verbose=verbose, unit=unit, skip=skip, n_samples=n_samples,
         )
-        self._factor /= 1e3  # CUDA Evants are measured in ms
+        self._factor /= 1e3  # CUDA Events are measured in ms
 
     @contextmanager
     def __call__(self, label=""):
@@ -121,11 +180,11 @@ class StatsCUDATimer(StatsTimer):
         else:
             yield
 
-class CUDATimer(Timer):
 
+class CUDATimer(Timer):
     def __init__(self, verbose=False, unit="s"):
         assert torch.cuda.is_available(), "CUDA not available"
-        super().__init__( verbose=verbose, unit=unit)
+        super().__init__(verbose=verbose, unit=unit)
         self._factor /= 1e3  # CUDA Evants are measured in ms
 
     @contextmanager

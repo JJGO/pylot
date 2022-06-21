@@ -1,11 +1,10 @@
 import matplotlib.pyplot as plt
 
 from .cmap import Monokai
-from .turbo import Turbo
 
 from .ui import PlotUI
 
-from .save import publishfig
+from .save import publishfig, publishHTML
 
 # from .plot import plot_df
 # from ..util import AutoMap

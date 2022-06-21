@@ -18,6 +18,7 @@ import pandas as pd
 from ..util import (
     dict_recursive_update,
     expand_dots,
+    get_from_dots,
     allbut,
     get_full_env_info,
     make_path,
@@ -27,12 +28,12 @@ from ..util import (
     MetricsStore,
     MetricsDict,
 )
+from ..util.mapping import NODEFAULT
 from .util import fix_seed
 
 
 class Experiment:
 
-    NODEFAULT = object()
 
     def __init__(self, cfg=None, path=None, **kwargs):
         if path is not None:
@@ -160,17 +161,8 @@ class Experiment:
         pass
 
     def get_param(self, param, default=NODEFAULT):
-        mapping = self.cfg
+        return get_from_dots(self.cfg, param, default=default)
 
-        for k in param.split("."):
-            if k in mapping:
-                mapping = mapping[k]
-            else:
-                if default is self.NODEFAULT:
-                    raise LookupError(f"Could find param {param} in config")
-                return default
-
-        return mapping
 
     @property
     def metrics(self):

@@ -31,6 +31,7 @@ from ..util import (
     make_path,
     to_device,
     any_getattr,
+    check_environment
 )
 from .. import callbacks
 from .. import datasets
@@ -56,6 +57,9 @@ class TrainExperiment(Experiment):
 
         # Default children kwargs
         super().__init__(cfg, **kwargs)
+
+        # Check environment
+        check_environment()
 
         # Attributes
         self.train_dataset = None
@@ -106,7 +110,10 @@ class TrainExperiment(Experiment):
         self.train_dl = DataLoader(
             self.train_dataset, shuffle=True, **dataloader_kwargs
         )
-        self.val_dl = DataLoader(self.val_dataset, shuffle=True, **dataloader_kwargs)
+        shuffle_val = self.get_param("data.dataloader.shuffle_val", False)
+        self.val_dl = DataLoader(
+            self.val_dataset, shuffle=shuffle_val, **dataloader_kwargs
+        )
         self.test_dl = DataLoader(self.test_dataset, shuffle=False, **dataloader_kwargs)
 
     def build_model(self, model, weights=None, **model_kwargs):
@@ -381,7 +388,7 @@ class TrainExperiment(Experiment):
         with torch.set_grad_enabled(grad_enabled):
             for batch_idx in range(len(dl)):
                 self.before_batch(phase, epoch, batch_idx)
-                outputs = self.run_step(phase, epoch_iter, batch_idx, timer)
+                outputs = self.run_step(phase, next(epoch_iter), batch_idx, timer)
                 self.compute_metrics(phase, meters, outputs)
 
                 postfix = {k: v.mean for k, v in meters.items()}
@@ -409,9 +416,11 @@ class TrainExperiment(Experiment):
 
         return metrics
 
-    def run_step(self, phase, batch_iter, batch_idx, timer):
+    def run_step(self, phase, batch, batch_idx, timer=None):
+        if timer is None:
+            timer = StatsTimer().disable()
         with timer("t_data"):
-            x, y = to_device(next(batch_iter), self.device)
+            x, y = to_device(batch, self.device)
         with timer("t_forward"):
             yhat = self.model(x)
             loss = self.loss_func(yhat, y)

@@ -35,9 +35,45 @@ def expand_dots(d):
                 newd[pre] = dict_recursive_update(newd[pre], u)
             else:
                 newd[pre] = u
+        elif isinstance(v, dict):
+            u = expand_dots(v)
+            if k in newd:
+                newd[k] = dict_recursive_update(newd[k], u)
+            else:
+                newd[k] = u
         else:
             newd[k] = v
     return newd
+
+
+NODEFAULT = object()
+
+
+def get_from_dots(mapping, key, default=NODEFAULT):
+    for k in key.split("."):
+        if k in mapping:
+            mapping = mapping[k]
+        else:
+            if default is NODEFAULT:
+                raise LookupError(f"Could find key {key} in config")
+            return default
+
+    return mapping
+
+
+def pop_from_dots(mapping, key, default=NODEFAULT):
+    prev = mapping
+    for k in key.split("."):
+        if k in mapping:
+            prev = mapping
+            mapping = mapping[k]
+        else:
+            if default is NODEFAULT:
+                raise LookupError(f"Could find key {key} in config")
+            return default
+
+    del prev[k]
+    return mapping
 
 
 def allbut(mapping, keys):
@@ -74,11 +110,11 @@ def dictdiff(*ds, flatten=False):
         ds = [expand_keys(d) for d in ds]
     from functools import reduce
     import operator
+
     rows = []
     ks = reduce(operator.or_, [set(d.keys()) for d in ds])
     for k in ks:
-        vs = [d.get(k, '') for d in ds]
+        vs = [d.get(k, "") for d in ds]
         if not all(vs[0] == v for v in vs):
             rows.append([k] + vs)
     return pd.DataFrame(data=rows)
-

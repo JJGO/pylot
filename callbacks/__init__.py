@@ -13,3 +13,4 @@ from .setup import (
 )
 from .debug import nvidia_smi, GPUStats
 from .img import ImgIO, ImgActivations
+from .profile import Throughput

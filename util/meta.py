@@ -10,6 +10,7 @@ def static_vars(**kwargs):
         for k in kwargs:
             setattr(func, k, kwargs[k])
         return func
+
     return decorate
 
 
@@ -23,11 +24,15 @@ def separate_kwargs(kwargs, func):
 
 
 def get_default_kwargs(func):
-    return {k: v.default for k, v in inspect.signature(func).parameters.items() if v.default != inspect.Parameter.empty}
+    return {
+        k: v.default
+        for k, v in inspect.signature(func).parameters.items()
+        if v.default != inspect.Parameter.empty
+    }
 
 
 # Taken from fastcore.foundation
-def delegates(to=None, keep=False, but=None, via='kwargs'):
+def delegates(to=None, keep=False, but=None, via="kwargs"):
     "Decorator: replace `**kwargs` in signature with params from `to`"
     if but is None:
         but = []
@@ -82,9 +87,10 @@ def store_attr(names=None, self=None, but=None, **attrs):
 
 
 def partial(f, *args, order=None, **kwargs):
-    "Like `functools.partial` but also copies over docstring"
+    "Like `functools.partial` but also copies over docstring and name"
     fnew = functools.partial(f, *args, **kwargs)
     fnew.__doc__ = f.__doc__
+    fnew.__name__ = f.__name__
     if order is not None:
         fnew.order = order
     elif hasattr(f, "order"):

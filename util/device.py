@@ -5,6 +5,8 @@ def to_device(inputs, device):
 
     if isinstance(inputs, torch.Tensor):
         return inputs.to(device)
+    if isinstance(inputs, torch.nn.Module):
+        return inputs.to(device)
     if isinstance(inputs, list):
         return [to_device(x, device) for x in inputs]
     if isinstance(inputs, tuple):

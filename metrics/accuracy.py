@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 
+from torch import Tensor
+
 
 def correct(output, target, topk=(1,)):
     """Computes how many correct outputs with respect to targets
@@ -38,7 +40,7 @@ def correct(output, target, topk=(1,)):
         return res
 
 
-def accuracy(model, dataloader, topk=(1,)):
+def accuracy_dl(model, dataloader, topk=(1,)):
     """Compute accuracy of a model over a dataloader for various topk
 
     Arguments:
@@ -69,3 +71,25 @@ def accuracy(model, dataloader, topk=(1,)):
     accs /= len(dataloader.dataset)
 
     return accs
+
+
+def _accuracy(output, target, topk=(1,)):
+    # from https://github.com/pytorch/examples/blob/0cb38ebb1b6e50426464b3485435c0c6affc2b65/imagenet/main.py#L436
+    """Computes the accuracy over the k top predictions for the specified values of k"""
+    with torch.no_grad():
+        maxk = max(topk)
+        batch_size = target.size(0)
+
+        _, pred = output.topk(maxk, 1, True, True)
+        pred = pred.t()
+        correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+        res = []
+        for k in topk:
+            correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
+            res.append(correct_k.mul_(1 / batch_size))
+        return res
+
+
+def accuracy(output, target):
+    return _accuracy(output, target)[0]

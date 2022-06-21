@@ -169,13 +169,7 @@ class ResultsLoader:
         return full_df
 
     def load_parquets(
-        self,
-        file,
-        df,
-        prefix=None,
-        shorthand=True,
-        skip=False,
-        copy_cols=('path',),
+        self, file, df, prefix=None, shorthand=True, skip=False, copy_cols=("path",),
     ):
 
         dfxs = []
@@ -202,7 +196,7 @@ class ResultsLoader:
             # for k, v in row.items():
             #     if v is None or isinstance(v, (str, float, int)):
             #         dfx[k] = v
-                # dfx[k] = [v for _ in range(len(dfx))]
+            # dfx[k] = [v for _ in range(len(dfx))]
 
             # Merge is slow
             # dfx = pd.merge(
@@ -279,7 +273,3 @@ class ResultsLoader:
         dfa = self.load_agg_logs(df=df)
 
         return dfc, df, dfa
-
-
-def merge_std(df):
-    pass

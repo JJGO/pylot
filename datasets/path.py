@@ -25,8 +25,7 @@ def dataset_path(dataset, path=None):
             paths = [pathlib.Path(p) for p in path.split(":")]
         else:
             raise ValueError(
-                f"No path specified. A path must be provided, \n \
-                           or the folder must be listed in your DATAPATH"
+                f"No path specified. A path must be provided, or the folder must be listed in your DATAPATH"
             )
 
     paths = [pathlib.Path(p) for p in path.split(":")]
@@ -34,7 +33,6 @@ def dataset_path(dataset, path=None):
     for p in paths:
         p = (p / dataset).resolve()
         if p.exists():
-            # print(f"Found {dataset} under {p}")
             return p
     raise LookupError(f"Could not find {dataset} in {paths}")
 

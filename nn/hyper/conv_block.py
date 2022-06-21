@@ -50,7 +50,6 @@ class VoidConvBlock(VoidModule):
                 self.F.add_module(f"b{i}_act", nonlinearity())
             if batch_norm:
                 self.F.add_module(f"b{i}_bn", bn_fn(n_out))
-
         self.shortcut = None
         if residual and inplanes != filters[-1]:
             self.shortcut = getattr(pylot.nn.hyper, f"VoidConv{dims}d")(

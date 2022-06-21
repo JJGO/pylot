@@ -42,6 +42,12 @@ def redirect_std(outfile, errfile, mode="a", unbuffered=True):
 
 
 @contextmanager
+def quiet_std():
+    with redirect_std("/dev/null", "/dev/null", unbuffered=False):
+        yield
+
+
+@contextmanager
 def temporary_save_path(filepath):
     """Yields a path where to save a file and moves it
     afterward to the provided location (and replaces any
