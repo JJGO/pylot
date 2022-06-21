@@ -19,11 +19,13 @@ def register_nonlinearity(nonlinearity):
     if hasattr(nn, name):
         raise ValueError(f"{name} already defined in torch.nn")
     if name in _custom_nonlinearities:
-        raise ValueError(f"{name} already defined in pylot.nn.nonlinearity")
+        raise ValueError(f"{name} already defined")
     _custom_nonlinearities[name] = nonlinearity
 
 
 def get_nonlinearity(nonlinearity):
+    if nonlinearity is None:
+        return None
     if hasattr(nn, nonlinearity):
         return getattr(nn, nonlinearity)
 

@@ -19,7 +19,7 @@ def initialize_weight(weight, distribution, nonlinearity="LeakyReLU"):
         nonlinearity = "tanh"
 
     if nonlinearity is None:
-        nonlinearity = 'linear'
+        nonlinearity = "linear"
 
     gain = 1 if nonlinearity is None else init.calculate_gain(nonlinearity)
 
