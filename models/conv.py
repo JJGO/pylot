@@ -1,51 +1,70 @@
+import copy
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 
 from torch import nn, Tensor
 import torch.nn.functional as F
 
-from ..nn import ConvBlock
-from ..nn import resize
+from pydantic import validate_arguments
+
+from ..nn import ConvBlock, resize, Flatten
 
 
+@validate_arguments
 @dataclass(eq=False, repr=False)
-class ConvEncoder(nn.Module):
+class ConvEncoder(nn.Sequential):
 
     in_channels: int
-    filters: List[int]
+    filters: list[int]
     convs_per_block: int = 1
-    dims: int = 2
-    flatten: bool = False
-    conv_kws: Optional[Dict[str, Any]] = None
+    conv_kws: Optional[dict[str, Any]] = None
     final_pool: bool = False
+    dims: int = 2
 
     def __post_init__(self):
         super().__init__()
 
-        conv_kws = {"dims": self.dims}
-        if self.conv_kws:
-            conv_kws.update(self.conv_kws)
+        conv_kws = {"dims": self.dims, **(self.conv_kws or {})}
+        pool_fn = getattr(nn, f"MaxPool{self.dims}d")
 
-        self.downsample = getattr(nn, f"MaxPool{self.dims}d")(2)
-
-        self.layers = nn.ModuleList()
         for i, (in_ch, out_ch) in enumerate(
             zip([self.in_channels] + self.filters, self.filters)
         ):
             c = ConvBlock(in_ch, [out_ch] * self.convs_per_block, **conv_kws)
-            self.layers.append(c)
-
-    def forward(self, x: Tensor) -> Tensor:
-        for i, block in enumerate(self.layers):
-            x = block(x)
-            if self.final_pool or i < len(self.layers) - 1:
-                x = self.downsample(x)
-
-        if self.flatten:
-            x = x.view(x.size(0), -1)
-        return x
+            self.add_module(f"b{i}", c)
+            if self.final_pool or i < len(self.filters) - 1:
+                self.add_module(f"pool{i}", pool_fn(2))
 
 
+@validate_arguments
+@dataclass(eq=False, repr=False)
+class ConvClassifier(nn.Sequential):
+
+    in_channels: int
+    n_classes: int
+    filters: list[int]
+    encoder_kws: Optional[dict[str, Any]] = None
+
+    def __post_init__(self):
+        super().__init__()
+        encoder_kws = self.encoder_kws or {}
+        self.add_module(
+            "encoder", ConvEncoder(self.in_channels, self.filters, **encoder_kws)
+        )
+        self.add_module("gpool", nn.AdaptiveAvgPool2d((1, 1)))
+        self.add_module("flatten", Flatten())
+        self.add_module("fc", nn.Linear(self.filters[-1], self.n_classes))
+
+    def change_n_classes(self, n_classes):
+        module = copy.deepcopy(self)
+        module.fc = nn.Linear(module.filters[-1], n_classes)
+        return module
+
+    def encode(self, input):
+        return self.flatten(self.gpool(self.encoder(input)))
+
+
+@validate_arguments
 @dataclass(eq=False, repr=False)
 class ConvDecoder(nn.Module):
 
