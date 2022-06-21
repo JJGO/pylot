@@ -27,6 +27,23 @@ def static_vars(**kwargs):
     return decorate
 
 
+# Memoization
+def memoize(obj):
+    cache = {}
+
+    @functools.wraps(obj)
+    def memoizer(*key):
+        key = tuple(key)
+        if key not in cache:
+            cache[key] = obj(*key)
+        return cache[key]
+
+    memoizer.cache = cache
+
+    return memoizer
+
+
+
 # Decorator for the Fluent API/Builder pattern
 # A method, when decorated with newobj will return a clone of the
 # object but the implementation can be transparent to that
