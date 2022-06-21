@@ -17,7 +17,20 @@ def check_numpy_mkl():
 
 
 def check_scipy_mkl():
-    from .capture import Capturing
+    from io import StringIO
+    import sys
+
+    class Capturing(list):
+        def __enter__(self):
+            self._stdout = sys.stdout
+            sys.stdout = self._stringio = StringIO()
+            return self
+
+        def __exit__(self, *args):
+            self.extend(self._stringio.getvalue().splitlines())
+            del self._stringio  # free up some memory
+            sys.stdout = self._stdout
+
     import scipy
 
     with Capturing() as output:
@@ -31,10 +44,10 @@ def check_torch_cuda():
     return torch.cuda.is_available()
 
 
-def check_jax_notcpu():
-    import jax
+def check_torch_cudnn_benchmark():
+    import torch
 
-    return jax.default_backend() in ["gpu", "tpu"]
+    return torch.backends.cudnn.benchmark
 
 
 def check_environment():
@@ -50,5 +63,9 @@ def check_environment():
         warn("Using slow Pillow instead of Pillow-SIMD")
     if not check_torch_cuda():
         warn("PyTorch cannot find a valid GPU device, check CUDA_VISIBLE_DEVICES")
-    if not check_jax_notcpu():
-        warn("JAX running on the CPU")
+    if not check_torch_cudnn_benchmark():
+        warn("cuDNN autotuner not enabled, set  torch.backends.cudnn.benchmark = True")
+
+
+if __name__ == "__main__":
+    check_environment()
