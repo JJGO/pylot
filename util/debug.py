@@ -19,14 +19,6 @@ def printcall(func):
 
     return wrapper
 
-def torch_traceback():
-    import torch
-    from rich.traceback import install
-    install(show_locals=True)
-    def repr(self):
-        return f"Tensor<{', '.join(map(str, self.shape))}|{str(self.dtype)[6:]}|{str(self.device)}>"
-    torch.Tensor.__repr__ = repr
-
 
 
 

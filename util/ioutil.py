@@ -417,3 +417,10 @@ def inplace_edit(file, backup=False):
 # class PlaintextFormat(FileFormat):
 
 #     EXTENSIONS = [".txt", ".TXT", ".log", ".LOG"]
+
+def is_jsonable(x):
+    try:
+        json.dumps(x)
+        return True
+    except (TypeError, OverflowError):
+        return False

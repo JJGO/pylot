@@ -1,7 +1,8 @@
-from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import os
 import pathlib
 import sys
+from io import StringIO
+from contextlib import redirect_stdout, redirect_stderr, contextmanager
 
 # @contextmanager
 # def redirect_std(outfile, mode="a"):
@@ -83,3 +84,15 @@ class Unbuffered(object):
 
     def __getattr__(self, attr):
         return getattr(self.stream, attr)
+
+
+class Capturing(list):
+    def __enter__(self):
+        self._stdout = sys.stdout
+        sys.stdout = self._stringio = StringIO()
+        return self
+
+    def __exit__(self, *args):
+        self.extend(self._stringio.getvalue().splitlines())
+        del self._stringio  # free up some memory
+        sys.stdout = self._stdout
