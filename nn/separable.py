@@ -5,6 +5,12 @@ from functools import partial, wraps
 
 # Based on this: https://github.com/seungjunlee96/Depthwise-Separable-Convolution_Pytorch
 
+__all__ = [
+    "DepthWiseSeparableConv1d",
+    "DepthWiseSeparableConv2d",
+    "DepthWiseSeparableConv3d",
+]
+
 
 def _depthwise_helper(conv_fn):
     @wraps(conv_fn)
@@ -42,9 +48,7 @@ class DepthWiseSeparableConvND(nn.Module):
         self.out_channels = out_channels
         self.kernels_per_layer = kernels_per_layer
         self.mid_channels = in_channels * kernels_per_layer
-        shared_conv_kwargs = dict(
-            bias=bias, padding_mode=padding_mode,
-        )
+        shared_conv_kwargs = dict(bias=bias, padding_mode=padding_mode,)
 
         self.depthwise = self._conv_fn(
             in_channels,
