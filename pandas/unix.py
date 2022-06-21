@@ -19,7 +19,7 @@ class UnixAccessor:
         assert ser.map(lambda x: isinstance(x, (Path, str))).all()
 
     @staticmethod
-    def _validate_dest(dest: Union[Path, str]):
+    def _validate_dest(dest: Union[Path, str]) -> Path:
         assert isinstance(dest, (str, Path))
         dest = Path(dest)
         dest.mkdir(parents=True, exist_ok=True)
@@ -43,7 +43,15 @@ class UnixAccessor:
         ser = self._ser
         if not strict:
             ser = ser[ser.map(lambda x: x.exists())]
-        ser.map(lambda path: shutil.copy(path, dest / path.name))
+
+        def _cp(path: Path):
+            if path.is_dir():
+                shutil.copytree(path, dest / path.name)
+            else:
+                shutil.copy(path, dest / path.name)
+
+        # ser.map(lambda path: shutil.copy(path, dest / path.name))
+        ser.map(_cp)
         return ser.map(lambda path: dest / path.name)
 
     def mv(self, dest: Union[str, Path], strict: bool = False):
