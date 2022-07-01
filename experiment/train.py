@@ -117,6 +117,7 @@ class TrainExperiment(BaseExperiment):
         print(
             f"Loaded checkpoint with tag:{tag}. Last epoch:{self.properties['epoch']}"
         )
+        return self
 
     def to_device(self):
         self.model = to_device(self.model, self.device)
