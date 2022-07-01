@@ -1,7 +1,7 @@
 from .automap import AutoMap
 from .color import printc
 from .config import Config, HDict, FHDict
-from .debug import torch_traceback, printcall
+from .debug import printcall
 from .env import get_full_env_info
 from .filecache import FileCache
 from .fzf import fzf

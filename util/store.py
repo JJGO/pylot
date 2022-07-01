@@ -3,7 +3,7 @@ import pathlib
 from contextlib import contextmanager
 
 from lmdbm import Lmdb
-from ..ioutil import autoencode, autodecode
+from .ioutil import autoencode, autodecode
 
 
 class AutoStore(collections.abc.MutableMapping):

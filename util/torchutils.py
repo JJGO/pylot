@@ -19,7 +19,7 @@ def to_device(inputs, device):
 
 
 def torch_traceback():
-    import torch
+    import torch, numpy
     from rich.traceback import install
     install(show_locals=True)
     def repr(self):
