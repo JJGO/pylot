@@ -32,6 +32,9 @@ def publishfig(path, fig=None, formats=("svg",), root=None, base_url=None, **kwa
     link = f"{base_url}/{path}.{formats[0]}"
     full_path = root / path
 
+    if "bbox_inches" not in kwargs:
+        kwargs["bbox_inches"] = "tight"
+
     for extension in formats:
         file_path = full_path.with_suffix(f".{extension}")
         file_path.parent.mkdir(exist_ok=True, parents=True)
