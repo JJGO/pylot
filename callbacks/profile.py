@@ -5,7 +5,7 @@ from tabulate import tabulate
 
 from ..util import printc
 from ..util.timer import StatsTimer
-from ..util.device import to_device
+from ..util.torchutils import to_device
 
 
 def Throughput(experiment, n_iter=100):

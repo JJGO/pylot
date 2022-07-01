@@ -19,5 +19,5 @@ from .setup import (
 from .debug import nvidia_smi, GPUStats
 from .img import ImgIO, ImgActivations
 from .profile import Throughput
-from .debug import inspect_job, InspectStack, TraceLine
+from .debug import inspect_job, InspectStack, TraceLine, TorchTraceback
 from .wrapup import S3Copy

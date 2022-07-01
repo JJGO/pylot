@@ -35,6 +35,7 @@ class InspectStack:
     This is useful for jobs that get stuck and unresponsive, so the
     callback will help determining where the process is located
     """
+
     def __init__(self, experiment):
         import stackprinter
 
@@ -71,10 +72,24 @@ class TraceLine:
 
     Useful to determine where frozen jobs get stuck at
     """
+
     def __init__(self, experiment, interval: int = 60):
         signal.signal(signal.SIGUSR2, traceline_handler)
         pid = os.getpid()
         timer(pid, interval)
+
+    def __call__(self):
+        pass
+
+
+######################################
+
+from ..util.torchutils import torch_traceback
+
+
+class TorchTraceback:
+    def __init__(self, experiment):
+        torch_traceback()
 
     def __call__(self):
         pass
@@ -104,4 +119,3 @@ def GPUStats(experiment):
             print(f"Maximum Allocated CUDA memory {max_allocated:.2f} MB")
 
     return GPUStatsCallback
-
