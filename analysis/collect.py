@@ -199,7 +199,7 @@ class ResultsLoader:
 
     def load_all(self, *paths, shorthand=True, **selector):
 
-        dfc = self.load_configs(*paths, shorthand=shorthand,).select(**selector)
+        dfc = self.load_configs(*paths, shorthand=shorthand,).select(**selector).copy()
         df = self.load_metrics(dfc)
         dfa = self.load_aggregate(dfc, df)
         return dfc, df, dfa
