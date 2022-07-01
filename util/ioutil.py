@@ -84,6 +84,21 @@ class NpyFormat(FileFormat):
         return np.load(fp)
 
 
+class NpzFormat(FileFormat):
+
+    EXTENSIONS = [".npz", ".NPZ"]
+
+    @classmethod
+    def save(cls, obj: np.ndarray, fp):
+        fp = cls.check_fp(fp)
+        np.savez(fp, **obj)
+
+    @classmethod
+    def load(cls, fp) -> np.ndarray:
+        fp = cls.check_fp(fp)
+        return dict(np.load(fp))
+
+
 class PtFormat(FileFormat):
 
     EXTENSIONS = [".pt", ".PT"]
@@ -331,6 +346,7 @@ class ZstdFormat(FileFormat):
 _DEFAULTFORMAT = {}
 for format_cls in (
     NpyFormat,
+    NpzFormat,
     PtFormat,
     YamlFormat,
     JsonFormat,
@@ -417,6 +433,7 @@ def inplace_edit(file, backup=False):
 # class PlaintextFormat(FileFormat):
 
 #     EXTENSIONS = [".txt", ".TXT", ".log", ".LOG"]
+
 
 def is_jsonable(x):
     try:
