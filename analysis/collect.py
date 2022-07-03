@@ -12,6 +12,7 @@ import numpy as np
 
 from ..util.config import HDict, valmap, keymap
 from ..util import FileCache
+from ..pandas.api import augment_from_attrs
 
 # unused import because we want the patching side-effects
 # on pd.DataFrames
@@ -115,6 +116,7 @@ class ResultsLoader:
         shorthand=True,
         copy_cols=None,
         path_key=None,
+        expand_attrs=False,
     ):
 
         log_dfs = []
@@ -147,6 +149,8 @@ class ResultsLoader:
                         log_df[col] = np.array(itertools.repeat(val, len(log_df)))
                     else:
                         log_df[col] = val
+            if expand_attrs:
+                log_df = augment_from_attrs(log_df)
             log_df["path"] = path
             log_dfs.append(log_df)
 
