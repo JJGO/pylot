@@ -425,7 +425,7 @@ def configdiff(*cfgs):
     import operator
     import pandas as pd
 
-    ds = [cfg.flatten() for cfg in cfgs]
+    ds = [flatten(cfg) for cfg in cfgs]
     rows = []
     ks = reduce(operator.or_, [set(d.keys()) for d in ds])
     for k in ks:
