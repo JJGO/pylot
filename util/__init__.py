@@ -13,6 +13,7 @@ from .meta import separate_kwargs, partial, delegates, GetAttr, get_default_kwar
 from .meter import StatsMeter, MeterDict
 from .metrics import MetricsDict, MetricsStore
 from .more_functools import partial, memoize, newobj
+from .notify import beep
 from .shapecheck import ShapeChecker
 from .pipes import redirect_std, Tee, quiet_std, Unbuffered, Capturing
 from .print import printy
