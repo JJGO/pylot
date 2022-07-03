@@ -167,6 +167,11 @@ class ResultsLoader:
                         renames[c] = c.replace(".", "__")
             full_df.rename(columns=renames, inplace=True)
 
+        # Ensure columns are hashable
+        for col in full_df.columns:
+            if not full_df[col].map(pd.api.types.is_hashable).all():
+                full_df[col] = full_df[col].map(json.dumps)
+
         return full_df
 
     def load_aggregate(
