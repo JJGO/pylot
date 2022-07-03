@@ -1,4 +1,5 @@
 import inspect
+import itertools
 from typing import Optional, Union
 
 import numpy as np
@@ -177,3 +178,13 @@ def smooth(df, column, *, group_by=("path", "phase"), alpha=None, window=None):
             lambda x: x.rolling(window, center=True).mean()
         )
     raise ValueError("Either alpha or window must be specified")
+
+
+@register_dataframe_method
+def augment_from_attrs(df):
+    for col, val in df.attrs.items():
+        if isinstance(val, (tuple, list, dict)):
+            df[col] = np.array(itertools.repeat(val, len(df)))
+        else:
+            df[col] = val
+    return df
