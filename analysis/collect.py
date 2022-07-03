@@ -9,6 +9,7 @@ from fnmatch import fnmatch
 from tqdm.auto import tqdm
 import pandas as pd
 import numpy as np
+import more_itertools
 
 from ..util.config import HDict, valmap, keymap
 from ..util import FileCache
@@ -127,12 +128,16 @@ class ResultsLoader:
 
         folders = config_df[path_key].values
 
-        files = self._cache.gets(
-            (folder / file for folder in folders), num_workers=self._num_workers
+        files = [file] if isinstance(file, str) else file
+        n_files = len(files)
+        all_files = self._cache.gets(
+            (folder / file for folder in folders for file in files),
+            num_workers=self._num_workers,
         )
+        config_iter = more_itertools.repeat_each(config_df.iterrows(), n_files)
 
         for (_, row), log_df in tqdm(
-            zip(config_df.iterrows(), files), total=len(config_df), leave=False
+            zip(config_iter, all_files), total=len(config_df) * n_files, leave=False
         ):
             row = row.to_dict()
             path = pathlib.Path(row[path_key])
