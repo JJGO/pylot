@@ -201,7 +201,7 @@ class TrainExperiment(BaseExperiment):
 
         if augmentation:
             with torch.no_grad():
-                x, y = self.aug_pipeline(x, y)
+                x = self.aug_pipeline(x)
 
         yhat = self.model(x)
         loss = self.loss_func(yhat, y)
