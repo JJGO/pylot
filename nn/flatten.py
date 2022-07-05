@@ -52,3 +52,14 @@ def unflatten_tensors(flat: Tensor, tensors: Iterable[Tensor]) -> Tuple[Tensor, 
 def copy_unflattened(flat: Tensor, tensors: Iterable[Tensor]):
     for src, dst in zip(unflatten_tensors(flat, tensors), tensors):
         dst.data = src
+
+
+class View(nn.Module):
+    def __init__(self, shape, batch=True):
+        super().__init__()
+        self.shape = shape
+        if batch:
+            self.shape = (-1,) + self.shape
+
+    def forward(self, x):
+        return x.view(*self.shape)
