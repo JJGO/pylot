@@ -5,12 +5,12 @@ from typing import List, Optional, Dict, Any
 from torch import nn, Tensor
 import torch.nn.functional as F
 
-from pydantic import validate_arguments
+from pylot.util import validate_arguments_init
 
 from ..nn import ConvBlock, resize, Flatten
 
 
-@validate_arguments
+@validate_arguments_init
 @dataclass(eq=False, repr=False)
 class ConvEncoder(nn.Sequential):
 
@@ -36,7 +36,7 @@ class ConvEncoder(nn.Sequential):
                 self.add_module(f"pool{i}", pool_fn(2))
 
 
-@validate_arguments
+@validate_arguments_init
 @dataclass(eq=False, repr=False)
 class ConvClassifier(nn.Sequential):
 
@@ -64,7 +64,7 @@ class ConvClassifier(nn.Sequential):
         return self.flatten(self.gpool(self.encoder(input)))
 
 
-@validate_arguments
+@validate_arguments_init
 @dataclass(eq=False, repr=False)
 class ConvDecoder(nn.Module):
 
