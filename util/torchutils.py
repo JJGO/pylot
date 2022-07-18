@@ -153,7 +153,7 @@ def _make_graph(
                     submod = mod
                     for k in submodule_name.split("."):
                         submod = getattr(submod, k)
-                    make_graph(
+                    _make_graph(
                         submod,
                         dot=sub_dot,
                         prefix=sub_prefix,
