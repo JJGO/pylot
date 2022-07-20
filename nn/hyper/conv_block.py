@@ -6,7 +6,7 @@ from ...nn.init import initialize_layer
 
 from typing import List, Optional, Union
 
-import pylot.nn.hyper
+from .. import hyper
 
 from .void import VoidModule
 
@@ -30,7 +30,7 @@ class VoidConvBlock(VoidModule):
         if activation is not None:
             nonlinearity = get_nonlinearity(activation)
 
-        conv_fn = getattr(pylot.nn.hyper, f"VoidConv{dims}d")
+        conv_fn = getattr(hyper, f"VoidConv{dims}d")
         if depthsep:
             conv_fn = getattr(separable, f"VoidDepthWiseSeparableConv{dims}d")
         bn_fn = getattr(nn, f"BatchNorm{dims}d")
@@ -52,7 +52,7 @@ class VoidConvBlock(VoidModule):
                 self.F.add_module(f"b{i}_bn", bn_fn(n_out))
         self.shortcut = None
         if residual and inplanes != filters[-1]:
-            self.shortcut = getattr(pylot.nn.hyper, f"VoidConv{dims}d")(
+            self.shortcut = getattr(hyper, f"VoidConv{dims}d")(
                 inplanes, filters[-1], kernel_size=1
             )
 

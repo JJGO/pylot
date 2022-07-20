@@ -2,15 +2,15 @@ from dataclasses import dataclass
 from typing import Optional, Any, Union, Literal
 
 import torch.nn as nn
-from pydantic import validate_arguments
 
 from .nonlinearity import get_nonlinearity
 from .init import initialize_layer
 from .norm import get_normlayer
 from .drop import DropPath
+from ..util.validation import validate_arguments_init
 
 
-@validate_arguments
+@validate_arguments_init
 @dataclass(eq=False, repr=False)
 class ConvBlock(nn.Module):
 

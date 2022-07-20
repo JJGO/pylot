@@ -7,7 +7,10 @@ References:
 """
 
 import torch
+from torch.optim import SGD
+
 from .wrapper import OptimWrapper
+from ..util import delegates, separate_kwargs
 
 # from torchlars._adaptive_lr import compute_adaptive_lr # Impossible to build extensions
 
@@ -113,8 +116,6 @@ class LARS(OptimWrapper):
             p.grad.data *= adaptive_lr
 
 
-from torch.optim import SGD
-from pylot.util import delegates, separate_kwargs
 
 
 class SGDLARS(LARS):

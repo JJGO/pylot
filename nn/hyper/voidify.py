@@ -3,7 +3,7 @@ from collections import OrderedDict
 from functools import lru_cache
 
 from torch import nn
-from pylot.util.mapping import allbut
+from ...util.mapping import allbut
 
 from .void import VoidModule
 from .xparam import ExternalParameter

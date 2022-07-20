@@ -6,7 +6,7 @@ from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
 
-from pylot.nn import get_nonlinearity, ConvBlock
+from ..nn import get_nonlinearity, ConvBlock
 
 
 @dataclass(eq=False, repr=False)

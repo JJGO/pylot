@@ -1,6 +1,9 @@
 import torch
 from torch import nn
+from torch.optim import SGD
 from torch.nn.parameter import Parameter
+
+from ..util import delegates, separate_kwargs
 
 
 class LARC(object):
@@ -107,8 +110,6 @@ class LARC(object):
             group["weight_decay"] = weight_decays[i]
 
 
-from torch.optim import SGD
-from pylot.util import delegates, separate_kwargs
 
 
 class SGDLARC(LARC):
