@@ -1,5 +1,4 @@
 import torch
-import graphviz
 
 
 def to_device(inputs, device):
@@ -55,6 +54,7 @@ def _make_graph(
     preds[self_input] = (set(), set())  # inps, ops
 
     if dot is None:
+        import graphviz
         dot = graphviz.Digraph(
             format="svg", graph_attr={"label": self_type, "labelloc": "t"}
         )

@@ -2,11 +2,9 @@ from functools import lru_cache
 from typing import Tuple
 import os
 
-import albumentations as A
 import numpy as np
 import pandas as pd
 from PIL import Image
-from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset
 from torchvision.datasets.utils import download_file_from_google_drive, extract_archive
 
@@ -75,6 +73,8 @@ class CUBBirds(Dataset, DatapathMixin):
         self.images_path = self.path / "CUB_200_2011/images"
 
     def _load_transforms(self):
+        import albumentations as A
+        from albumentations.pytorch import ToTensorV2
         transforms = []
         if self.size:
             height, width = self.size

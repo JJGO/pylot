@@ -1,11 +1,9 @@
 from functools import lru_cache
 from typing import Tuple
 
-import albumentations as A
 import numpy as np
 import pandas as pd
 from PIL import Image
-from albumentations.pytorch import ToTensorV2
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchvision.datasets.utils import download_and_extract_archive
@@ -83,6 +81,8 @@ class OxfordPets(Dataset, DatapathMixin):
         self._labels = labels.values - 1
 
     def _load_transforms(self):
+        import albumentations as A
+        from albumentations.pytorch import ToTensorV2
         transforms = []
         if self.size:
             height, width = self.size

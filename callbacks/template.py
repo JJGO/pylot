@@ -2,7 +2,6 @@ import json
 import os
 import pathlib
 
-from box import Box
 
 import jinja2
 
@@ -26,6 +25,7 @@ class TemplateCallback:
         self.data_path = self.experiment.path / f"images/{self.name}.json.gz"
         self.output_path.parent.mkdir(exist_ok=True, parents=True)
 
+        from box import Box
         self.data = Box()
         self.templateEnv = get_templateEnv()
 

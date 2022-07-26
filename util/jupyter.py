@@ -1,5 +1,3 @@
-from IPython.display import HTML, display
-
 from .more_functools import static_vars
 
 
@@ -19,6 +17,7 @@ def isnotebook():
 @static_vars(initialized=False)
 def notebook_put_into_clipboard(text):
 
+    from IPython.display import HTML, display
     if not notebook_put_into_clipboard.initialized:
 
         init = HTML("""

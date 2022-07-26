@@ -6,8 +6,6 @@ import numpy as np
 from torchvision.datasets import VOCSegmentation
 from torch.utils.data import Dataset
 import torch.nn.functional as F
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 
 from ..path import DatapathMixin
 
@@ -55,6 +53,8 @@ class PascalVOC2012(Dataset, DatapathMixin):
                 self.__getitem__ = lru_cache(maxsize=None)(self.__getitem__)
 
     def _load_transforms(self):
+        import albumentations as A
+        from albumentations.pytorch import ToTensorV2
         transforms = []
         if self.size:
             height, width = self.size

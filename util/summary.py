@@ -4,7 +4,6 @@ from collections import OrderedDict
 import numpy as np
 import torch
 import torch.nn as nn
-from torchviz import make_dot
 
 
 def summary(model, input_size, batch_size=-1, device="cuda", echo=True, as_stats=False):
@@ -141,6 +140,8 @@ def record_model(model, x, path=None):
 
     # Generate topology
     yhat = model(x)
+
+    from torchviz import make_dot
     g = make_dot(yhat)
     #     g.format = 'svg'
     g.render(path / "topology")
