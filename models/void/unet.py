@@ -6,8 +6,8 @@ from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
 
-from pylot.nn import get_nonlinearity
-from pylot.nn.hyper import VoidModule, VoidConvBlock
+from ...nn import get_nonlinearity
+from ...nn.hyper import VoidModule, VoidConvBlock
 
 
 @dataclass(eq=False, repr=False)

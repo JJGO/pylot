@@ -5,7 +5,7 @@ from typing import List, Tuple, Optional
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from pylot.util.img import toImg
+from ..util.img import toImg
 
 
 def sample_batches(

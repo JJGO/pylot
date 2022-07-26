@@ -3,8 +3,8 @@ from typing import Dict, Tuple, Any
 import torch
 from torch import nn, Tensor
 
-from pylot.nn.spatial_transformer import SpatialTransformer
-from pylot.models import UNet
+from ..nn.spatial_transformer import SpatialTransformer
+from .unet import UNet
 
 
 class Voxelmorph(nn.Module):

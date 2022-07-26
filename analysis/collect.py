@@ -155,7 +155,7 @@ class ResultsLoader:
                     else:
                         log_df[col] = val
             if expand_attrs:
-                log_df = augment_from_attrs(log_df)
+                log_df = augment_from_attrs(log_df, prefix=f"{prefix}.")
             log_df["path"] = path
             log_dfs.append(log_df)
 

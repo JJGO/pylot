@@ -181,10 +181,10 @@ def smooth(df, column, *, group_by=("path", "phase"), alpha=None, window=None):
 
 
 @register_dataframe_method
-def augment_from_attrs(df):
+def augment_from_attrs(df, prefix=""):
     for col, val in df.attrs.items():
         if isinstance(val, (tuple, list, dict)):
-            df[col] = np.array(itertools.repeat(val, len(df)))
+            df[prefix + col] = np.array(itertools.repeat(val, len(df)))
         else:
-            df[col] = val
+            df[prefix + col] = val
     return df
