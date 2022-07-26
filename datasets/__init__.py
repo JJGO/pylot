@@ -9,3 +9,4 @@ from .cache import IndexedImageFolder, IndexedDatasetFolder, IndexedImageDataset
 from .subset import subset_dataset
 from .selfsuper import SelfsuperDataset, self_supervised
 from .vision import *
+from .image_folder_tar import ImageFolderTar
