@@ -15,9 +15,9 @@ from ..nn import ConvBlock, resize, Flatten
 class ConvEncoder(nn.Sequential):
 
     in_channels: int
-    filters: list[int]
+    filters: List[int]
     convs_per_block: int = 1
-    conv_kws: Optional[dict[str, Any]] = None
+    conv_kws: Optional[Dict[str, Any]] = None
     final_pool: bool = False
     dims: int = 2
 
@@ -42,8 +42,8 @@ class ConvClassifier(nn.Sequential):
 
     in_channels: int
     n_classes: int
-    filters: list[int]
-    encoder_kws: Optional[dict[str, Any]] = None
+    filters: List[int]
+    encoder_kws: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         super().__init__()

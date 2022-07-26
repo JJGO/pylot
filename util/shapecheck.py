@@ -1,10 +1,10 @@
 import string
-from typing import Union
+from typing import Union, Tuple
 import torch
 import numpy as np
 from tabulate import tabulate
 
-NormalizedSpec = tuple[Union[str, int], ...]
+NormalizedSpec = Tuple[Union[str, int], ...]
 Spec = Union[str, NormalizedSpec]
 Tensor = Union[np.ndarray, torch.Tensor]
 

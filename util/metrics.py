@@ -1,5 +1,6 @@
 import pathlib
 import json
+from typing import List, Dict
 
 from collections.abc import Mapping
 from typing import Optional, Union, Dict, Any, List
@@ -14,7 +15,7 @@ class MetricsStore:
             path = Path(path)
         self.path = path
 
-    def log(self, *metrics: list[dict[str, Any]]):
+    def log(self, *metrics: List[Dict[str, Any]]):
         with self.path.open("a") as f:
             for datapoint in metrics:
                 print(json.dumps(datapoint), file=f)

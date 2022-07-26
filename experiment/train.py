@@ -1,6 +1,7 @@
 import copy
-import sys
 import pathlib
+import sys
+from typing import List
 
 import torch
 from torch import nn
@@ -101,7 +102,7 @@ class TrainExperiment(BaseExperiment):
             torch.save(self.state, f)
 
     @property
-    def checkpoints(self, as_paths=False) -> list[str]:
+    def checkpoints(self, as_paths=False) -> List[str]:
         checkpoints = list((self.path / "checkpoints").iterdir())
         checkpoints = sorted(checkpoints, key=lambda x: x.stat().st_mtime, reverse=True)
         if as_paths:

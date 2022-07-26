@@ -3,14 +3,14 @@ import hashlib
 import pathlib
 from collections.abc import MutableMapping, Mapping
 from contextlib import contextmanager
-from typing import Any, Union
+from typing import Any, Union, Tuple, Dict
 
 import yaml
 
 from .ioutil import autoload, autosave
 from .more_functools import newobj
 
-NormalizedKey = tuple[Union[str, int], ...]
+NormalizedKey = Tuple[Union[str, int], ...]
 Key = Union[str, NormalizedKey]
 
 
@@ -32,10 +32,10 @@ def parse_key(key, sep=None) -> NormalizedKey:
     elif isinstance(key, int):
         return (key,)
     else:
-        raise TypeError(f"Key must be str|int|tuple[str], not {type(key)}")
+        raise TypeError(f"Key must be str|int|Tuple[str], not {type(key)}")
 
 
-def flatten(nested_dict, sep=None) -> dict[Key, Any]:
+def flatten(nested_dict, sep=None) -> Dict[Key, Any]:
     flat_dict = {}
     for k, v in nested_dict.items():
         if isinstance(v, Mapping):
@@ -48,7 +48,7 @@ def flatten(nested_dict, sep=None) -> dict[Key, Any]:
     return flat_dict
 
 
-def deepupdate(original, update) -> dict[Key, Any]:
+def deepupdate(original, update) -> Dict[Key, Any]:
     for k, v in update.items():
         if isinstance(v, Mapping):
             original[k] = deepupdate(original.get(k, {}), v)

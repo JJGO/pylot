@@ -5,6 +5,7 @@ import random
 import time
 import importlib
 import pathlib
+from typing import Tuple
 
 from ..util.config import HDict, Config
 from ..util.ioutil import autoload
@@ -21,7 +22,7 @@ def fix_seed(seed):
     torch.manual_seed(seed)
 
 
-def generate_tuid(nonce_length: int = 4) -> tuple[str, int]:
+def generate_tuid(nonce_length: int = 4) -> Tuple[str, int]:
     rng = np.random.default_rng(time.time_ns())
     now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     char_options = list(string.ascii_uppercase + string.digits)

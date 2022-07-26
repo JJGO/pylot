@@ -1,5 +1,5 @@
 import random
-from typing import Optional, Union
+from typing import Optional, Union, Tuple, Dict
 
 import torch
 import numpy as np
@@ -15,8 +15,8 @@ from .common import AugmentationBase2D, _as_single_val, _as2tuple
 class RandomBrightnessContrast(AugmentationBase2D):
     def __init__(
         self,
-        brightness: Union[float, tuple[float, float]] = 0.0,
-        contrast: Union[float, tuple[float, float]] = 1.0,
+        brightness: Union[float, Tuple[float, float]] = 0.0,
+        contrast: Union[float, Tuple[float, float]] = 1.0,
         same_on_batch: bool = False,
         p: float = 0.5,
         keepdim: bool = False,
@@ -39,7 +39,7 @@ class RandomBrightnessContrast(AugmentationBase2D):
     def apply_transform(
         self,
         input: torch.Tensor,
-        params: dict[str, torch.Tensor],
+        params: Dict[str, torch.Tensor],
         transform: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         transforms = [
@@ -59,8 +59,8 @@ class FilterBase(AugmentationBase2D):
     @validate_arguments
     def __init__(
         self,
-        kernel_size: Union[int, tuple[int, int]],
-        sigma: Union[float, tuple[float, float]],
+        kernel_size: Union[int, Tuple[int, int]],
+        sigma: Union[float, Tuple[float, float]],
         same_on_batch: bool = False,
         p: float = 0.5,
         keepdim: bool = False,
@@ -85,8 +85,8 @@ class VariableFilterBase(FilterBase):
 class RandomVariableGaussianBlur(VariableFilterBase):
     def __init__(
         self,
-        kernel_size: Union[int, tuple[int, int]],
-        sigma: Union[float, tuple[float, float]],
+        kernel_size: Union[int, Tuple[int, int]],
+        sigma: Union[float, Tuple[float, float]],
         border_type: str = "reflect",
         same_on_batch: bool = False,
         p: float = 0.5,
@@ -104,7 +104,7 @@ class RandomVariableGaussianBlur(VariableFilterBase):
     def apply_transform(
         self,
         input: torch.Tensor,
-        params: dict[str, torch.Tensor],
+        params: Dict[str, torch.Tensor],
         transform: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
 
@@ -119,7 +119,7 @@ class RandomVariableGaussianBlur(VariableFilterBase):
 class RandomVariableBoxBlur(AugmentationBase2D):
     def __init__(
         self,
-        kernel_size: Union[int, tuple[int, int]] = 3,
+        kernel_size: Union[int, Tuple[int, int]] = 3,
         border_type: str = "reflect",
         normalized: bool = True,
         same_on_batch: bool = False,
@@ -133,12 +133,12 @@ class RandomVariableBoxBlur(AugmentationBase2D):
 
     def generate_parameters(self, input_shape: torch.Size):
         kernel_size = _as_single_val(self.kernel_size)
-        return dict(kernel_size=kernel_size)
+        return Dict(kernel_size=kernel_size)
 
     def apply_transform(
         self,
         input: torch.Tensor,
-        params: dict[str, torch.Tensor],
+        params: Dict[str, torch.Tensor],
         transform: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         kernel_size = _as2tuple(params["kernel_size"])
@@ -150,8 +150,8 @@ class RandomVariableBoxBlur(AugmentationBase2D):
 class RandomVariableGaussianNoise(AugmentationBase2D):
     def __init__(
         self,
-        mean: Union[float, tuple[float, float]] = 0.0,
-        std: Union[float, tuple[float, float]] = 1.0,
+        mean: Union[float, Tuple[float, float]] = 0.0,
+        std: Union[float, Tuple[float, float]] = 1.0,
         same_on_batch: bool = False,
         p: float = 0.5,
         keepdim: bool = False,
@@ -177,7 +177,7 @@ class RandomVariableGaussianNoise(AugmentationBase2D):
     def apply_transform(
         self,
         input: torch.Tensor,
-        params: dict[str, torch.Tensor],
+        params: Dict[str, torch.Tensor],
         transform: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         return input + params["noise"]
@@ -186,9 +186,9 @@ class RandomVariableGaussianNoise(AugmentationBase2D):
 class RandomVariableElasticTransform(AugmentationBase2D):
     def __init__(
         self,
-        kernel_size: Union[int, tuple[int, int]] = 63,
-        sigma: Union[float, tuple[float, float]] = 32,
-        alpha: Union[float, tuple[float, float]] = 1.0,
+        kernel_size: Union[int, Tuple[int, int]] = 63,
+        sigma: Union[float, Tuple[float, float]] = 32,
+        alpha: Union[float, Tuple[float, float]] = 1.0,
         align_corners: bool = False,
         mode: str = "bilinear",
         padding_mode: str = "zeros",
@@ -208,7 +208,7 @@ class RandomVariableElasticTransform(AugmentationBase2D):
             padding_mode=padding_mode,
         )
 
-    def generate_parameters(self, shape: torch.Size) -> dict[str, torch.Tensor]:
+    def generate_parameters(self, shape: torch.Size) -> Dict[str, torch.Tensor]:
         B, _, H, W = shape
         if self.same_on_batch:
             noise = torch.rand(1, 2, H, W, device=self.device, dtype=self.dtype).repeat(
@@ -228,7 +228,7 @@ class RandomVariableElasticTransform(AugmentationBase2D):
     def apply_transform(
         self,
         input: torch.Tensor,
-        params: dict[str, torch.Tensor],
+        params: Dict[str, torch.Tensor],
         transform: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         return K.geometry.transform.elastic_transform2d(

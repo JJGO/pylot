@@ -1,4 +1,5 @@
 import itertools
+from typing import Tuple, List
 
 import torch
 from tqdm.auto import tqdm
@@ -11,8 +12,8 @@ from .device import to_device
 
 def benchmark_dataloader(
     dataset: torch.utils.data.Dataset,
-    workers: list[int],
-    batch_sizes: list[int],
+    workers: List[int],
+    batch_sizes: List[int],
     samples=None,
     skip=5,
     warmup=True,
@@ -63,9 +64,9 @@ def benchmark_dataloader(
 
 def benchmark_model_speed(
     model: torch.nn.Module,
-    input_size: tuple[int, ...],
-    output_size: list[int],
-    batch_sizes: list[int],
+    input_size: Tuple[int, ...],
+    output_size: List[int],
+    batch_sizes: List[int],
     loss_func,
     device="cpu",
     samples=100,

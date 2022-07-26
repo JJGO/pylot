@@ -1,11 +1,11 @@
-from typing import Union
+from typing import Union, Tuple
 
 import numpy as np
 import kornia.augmentation as KA
 
 
 # TODO: make typing work for float too
-def _as2tuple(value: Union[int, tuple[int, int]]) -> tuple[int, int]:
+def _as2tuple(value: Union[int, Tuple[int, int]]) -> Tuple[int, int]:
     # because kornia.morphology works only with two-tuples
     if isinstance(value, (int, float)):
         return (value, value)

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Any, Union, Literal
+from typing import Optional, Any, Union, Literal, List
 
 import torch.nn as nn
 from pydantic import validate_arguments
@@ -15,8 +15,8 @@ from .drop import DropPath
 class ConvBlock(nn.Module):
 
     in_channels: int
-    filters: list[int]
-    kernel_size: Union[int, list[int]] = 3
+    filters: List[int]
+    kernel_size: Union[int, List[int]] = 3
     norm: Literal[None, "batch", "layer", "instance", "group"] = None
     activation: Optional[str] = "LeakyReLU"
     residual: bool = False
