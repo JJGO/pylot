@@ -6,6 +6,8 @@ import torch
 import tarfile
 from PIL import Image
 
+from ..util import autoload
+
 
 IMG_EXTENSIONS = [".png", ".jpg", ".jpeg"]
 
@@ -15,7 +17,7 @@ def natural_key(string_):
     return [int(s) if s.isdigit() else s for s in re.split(r"(\d+)", string_.lower())]
 
 
-def _extract_tar_info(tarfile):
+def _extract_tar_info(tarfile, prefix=None):
     class_to_idx = {}
     files = []
     targets = []
@@ -23,6 +25,8 @@ def _extract_tar_info(tarfile):
         if not ti.isfile():
             continue
         dirname, basename = os.path.split(ti.path)
+        if prefix is not None and not dirname.startswith("./" + prefix):
+            continue
         target = os.path.basename(dirname)
         class_to_idx[target] = None
         ext = os.path.splitext(basename)[1]
@@ -39,14 +43,17 @@ def _extract_tar_info(tarfile):
 
 
 class ImageFolderTar(data.Dataset):
-    def __init__(self, root, transform=None):
+    def __init__(self, root, transform=None, prefix=None, index=None):
 
         assert os.path.isfile(root)
         self.root = root
-        with tarfile.open(
-            root
-        ) as tf:  # cannot keep this open across processes, reopen later
-            self.imgs = _extract_tar_info(tf)
+        if index is not None:
+            self.imgs = autoload(index)
+        else:
+            with tarfile.open(
+                root
+            ) as tf:  # cannot keep this open across processes, reopen later
+                self.imgs = _extract_tar_info(tf, prefix=prefix)
         self.tarfile = None  # lazy init in __getitem__
         self.transform = transform
         self.targets = torch.Tensor([i for _, i in self.imgs])
