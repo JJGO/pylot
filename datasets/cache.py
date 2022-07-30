@@ -6,27 +6,50 @@ from torchvision.datasets import VisionDataset
 from torchvision.datasets.folder import make_dataset, IMG_EXTENSIONS, default_loader
 
 
-class IndexedDatasetFolder(VisionDataset):
-    def __init__(self, root, loader, extensions=None, transform=None,
-                 target_transform=None, is_valid_file=None):
-        super().__init__(root, transform=transform,
-                         target_transform=target_transform)
+def removeprefix(s, prefix):
+    if s.startswith(prefix):
+        s = s[len(prefix) :]
+    return s
 
-        index = pathlib.Path(root).with_suffix('.json')
+
+class IndexedDatasetFolder(VisionDataset):
+    def __init__(
+        self,
+        root,
+        loader,
+        extensions=None,
+        transform=None,
+        target_transform=None,
+        is_valid_file=None,
+    ):
+        super().__init__(root, transform=transform, target_transform=target_transform)
+
+        index = pathlib.Path(root).with_suffix(".json")
+        root_prefix = str(root) + "/"
         if not index.exists():
             classes, class_to_idx = self._find_classes(self.root)
             samples = make_dataset(self.root, class_to_idx, extensions, is_valid_file)
             if not index.exists():
                 # Navigating the FS can take long, some processs might have
                 # Finished before we do
-                cache = {'classes': classes, 'class_to_idx': class_to_idx, 'samples': samples}
-                with open(index, 'w') as f:
+                labels = [label for _, label in samples]
+                relative_paths = [
+                    removeprefix(path, root_prefix) for path, _ in samples
+                ]
+                cache = {
+                    "classes": classes,
+                    "class_to_idx": class_to_idx,
+                    "labels": labels,
+                    "relative_paths": relative_paths,
+                }
+                with open(index, "w") as f:
                     json.dump(cache, f)
         else:
-            with open(index, 'r') as f:
+            with open(index, "r") as f:
                 cache = json.load(f)
-                classes, class_to_idx = cache['classes'], cache['class_to_idx']
-                samples = cache['samples']
+                classes, class_to_idx = cache["classes"], cache["class_to_idx"]
+                paths = [root_prefix+rel_path for rel_path in cache["relative_paths"]]
+                samples = [(path, label) for path, label in zip(paths, cache["labels"])]
 
         if len(samples) == 0:
             msg = "Found 0 files in subfolders of: {}\n".format(self.root)
@@ -82,16 +105,26 @@ class IndexedDatasetFolder(VisionDataset):
 
 
 class IndexedImageFolder(IndexedDatasetFolder):
-    def __init__(self, root, transform=None, target_transform=None,
-                 loader=default_loader, is_valid_file=None):
-        super().__init__(root, loader, IMG_EXTENSIONS if is_valid_file is None else None,
-                         transform=transform,
-                         target_transform=target_transform,
-                         is_valid_file=is_valid_file)
+    def __init__(
+        self,
+        root,
+        transform=None,
+        target_transform=None,
+        loader=default_loader,
+        is_valid_file=None,
+    ):
+        super().__init__(
+            root,
+            loader,
+            IMG_EXTENSIONS if is_valid_file is None else None,
+            transform=transform,
+            target_transform=target_transform,
+            is_valid_file=is_valid_file,
+        )
         self.imgs = self.samples
 
 
 def IndexedImageDataset(root, train=True, **kwargs):
     root = pathlib.Path(root)
-    root /= 'train' if train else 'val'
+    root /= "train" if train else "val"
     return IndexedImageFolder(root, **kwargs)
