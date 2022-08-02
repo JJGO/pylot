@@ -1,28 +1,41 @@
 import torch
 
 
-def to_device(inputs, device):
+def to_device(inputs, device, channels_last=False):
+
+    # See https://pytorch.org/tutorials/intermediate/memory_format_tutorial.html
+    # for info on channels last memory layout
+
+    memory_format = torch.channels_last if channels_last else torch.contiguous_format
 
     if isinstance(inputs, torch.Tensor):
-        return inputs.to(device)
+        return inputs.to(device, memory_format=memory_format)
     if isinstance(inputs, torch.nn.Module):
-        return inputs.to(device)
+        return inputs.to(device, memory_format=memory_format)
     if isinstance(inputs, list):
-        return [to_device(x, device) for x in inputs]
+        return [to_device(x, device, channels_last=channels_last) for x in inputs]
     if isinstance(inputs, tuple):
         tuple_cls = inputs.__class__  ## to preserve namedtuple
-        return tuple_cls(*[(to_device(x, device) for x in inputs)])
+        return tuple_cls(
+            *[(to_device(x, device, channels_last=channels_last) for x in inputs)]
+        )
     if isinstance(inputs, dict):
-        return {k: to_device(v, device) for k, v in inputs.items()}
+        return {
+            k: to_device(v, device, channels_last=channels_last)
+            for k, v in inputs.items()
+        }
     raise TypeError(f"Type {type(inputs)} not supported")
 
 
 def torch_traceback():
     import torch, numpy
     from rich.traceback import install
+
     install(show_locals=True)
+
     def repr(self):
         return f"Tensor<{', '.join(map(str, self.shape))}|{str(self.dtype)[6:]}|{str(self.device)}>"
+
     torch.Tensor.__repr__ = repr
 
 
@@ -55,6 +68,7 @@ def _make_graph(
 
     if dot is None:
         import graphviz
+
         dot = graphviz.Digraph(
             format="svg", graph_attr={"label": self_type, "labelloc": "t"}
         )
@@ -261,4 +275,3 @@ def trace_model_viz(model, inputs, classes_to_visit):
     for p in traced_model.parameters():
         p.requires_grad_(False)
     return _make_graph(traced_model, classes_to_visit=classes_to_visit)
-

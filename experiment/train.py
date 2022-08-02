@@ -121,7 +121,7 @@ class TrainExperiment(BaseExperiment):
         return self
 
     def to_device(self):
-        self.model = to_device(self.model, self.device)
+        self.model = to_device(self.model, self.device, self.config.get('train.channels_last', False))
 
     def run_callbacks(self, callback_group, **kwargs):
         with torch.no_grad():
@@ -198,7 +198,7 @@ class TrainExperiment(BaseExperiment):
 
     def run_step(self, batch_idx, batch, backward=True, augmentation=True):
 
-        x, y = to_device(batch, self.device)
+        x, y = to_device(batch, self.device, self.config.get('train.channels_last', False)
 
         if augmentation:
             with torch.no_grad():
