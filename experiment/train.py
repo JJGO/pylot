@@ -181,6 +181,8 @@ class TrainExperiment(BaseExperiment):
         grad_enabled = phase == "train"
         augmentation = (phase == "train") and ("augmentations" in self.config)
 
+        self.model.train(grad_enabled) # For dropout, batchnorm, &c
+
         meters = MeterDict()
 
         with torch.set_grad_enabled(grad_enabled):
