@@ -124,9 +124,8 @@ class TrainExperiment(BaseExperiment):
         self.model = to_device(self.model, self.device, self.config.get('train.channels_last', False))
 
     def run_callbacks(self, callback_group, **kwargs):
-        with torch.no_grad():
-            for callback in self.callbacks.get(callback_group, []):
-                callback(**kwargs)
+        for callback in self.callbacks.get(callback_group, []):
+            callback(**kwargs)
 
     def run(self):
         self.build_dataloader()
@@ -185,7 +184,8 @@ class TrainExperiment(BaseExperiment):
 
         meters = MeterDict()
 
-        with torch.set_grad_enabled(grad_enabled):
+        # with torch.set_grad_enabled(grad_enabled):
+        with torch.inference_mode(not grad_enabled):
             for batch_idx, batch in enumerate(dl):
                 outputs = self.run_step(
                     batch_idx, batch, backward=grad_enabled, augmentation=augmentation
@@ -203,7 +203,7 @@ class TrainExperiment(BaseExperiment):
         x, y = to_device(batch, self.device, self.config.get('train.channels_last', False)
 
         if augmentation:
-            with torch.no_grad():
+            with torch.inference_mode():
                 x = self.aug_pipeline(x)
 
         yhat = self.model(x)
