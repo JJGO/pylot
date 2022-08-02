@@ -1,4 +1,8 @@
+from collections import OrderedDict
+
 from torch import nn
+
+from ..util.future import remove_prefix
 
 
 def freeze_batchnorm(model: nn.Module, freeze_affine=True, freeze_running=True):
@@ -14,3 +18,16 @@ def freeze_batchnorm(model: nn.Module, freeze_affine=True, freeze_running=True):
             # Freeze running stats
             module.track_running_stats = not freeze_running
             module.eval()
+
+
+def remove_state_dict_wrapper(state_dict: OrderedDict) -> OrderedDict:
+    # Helper to deal with DataParallel / DistributedDataParallel annoyances
+    if all(k.startswith("module.") for k in state_dict):
+        return OrderedDict(
+            {remove_prefix(k, "module."): v for k, v in state_dict.items()}
+        )
+    return state_dict
+
+
+def auto_load_state_dict(module: nn.Module, state_dict: OrderedDict):
+    module.load_state_dict(remove_state_dict_wrapper(state_dict))
