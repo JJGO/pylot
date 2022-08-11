@@ -19,6 +19,7 @@ class ConvEncoder(nn.Sequential):
     conv_kws: Optional[Dict[str, Any]] = None
     final_pool: bool = False
     dims: int = 2
+    collapse_spatial: bool = False
 
     def __post_init__(self):
         super().__init__()
@@ -34,6 +35,10 @@ class ConvEncoder(nn.Sequential):
             if self.final_pool or i < len(self.filters) - 1:
                 self.add_module(f"pool{i}", pool_fn(2))
 
+        if self.collapse_spatial:
+            self.gpool = nn.AdaptiveAvgPool2d((1, 1))
+            self.flatten = Flatten()  # Flatten only to squeeze spatial dims
+
 
 @validate_arguments_init
 @dataclass(eq=False, repr=False)
@@ -47,12 +52,9 @@ class ConvClassifier(nn.Sequential):
     def __post_init__(self):
         super().__init__()
         encoder_kws = self.encoder_kws or {}
-        self.add_module(
-            "encoder", ConvEncoder(self.in_channels, self.filters, **encoder_kws)
-        )
-        self.add_module("gpool", nn.AdaptiveAvgPool2d((1, 1)))
-        self.add_module("flatten", Flatten())
-        self.add_module("fc", nn.Linear(self.filters[-1], self.n_classes))
+        self.encoder = ConvEncoder(self.in_channels, self.filters, **encoder_kws)
+        self.flatten = Flatten()
+        self.fc = nn.Linear(self.filters[-1], self.n_classes)
 
     def change_n_classes(self, n_classes):
         module = copy.deepcopy(self)
