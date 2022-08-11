@@ -6,6 +6,15 @@ import PIL
 
 from ..cache import IndexedImageDataset
 
+__all__ = [
+    "CIFAR10",
+    "CIFAR100",
+    "ImageNet",
+    "Places365",
+    "Miniplaces",
+    "TinyImageNet",
+]
+
 _constructors = {
     "MNIST": datasets.MNIST,
     "CIFAR10": datasets.CIFAR10,
