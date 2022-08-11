@@ -12,7 +12,7 @@ from .util import eval_config, absolute_import
 from ..util.torchutils import to_device
 from ..util.meter import MeterDict
 from ..util.ioutil import autosave
-from ..nn.util import num_params
+from ..nn.util import num_params, split_param_groups_by_weight_decay
 
 
 class TrainExperiment(BaseExperiment):
@@ -36,8 +36,12 @@ class TrainExperiment(BaseExperiment):
 
     def build_dataloader(self):
         dl_cfg = self.config["dataloader"]
-        self.train_dl = DataLoader(self.train_dataset, shuffle=True, **dl_cfg)
-        self.val_dl = DataLoader(self.val_dataset, shuffle=False, **dl_cfg)
+        self.train_dl = DataLoader(
+            self.train_dataset, shuffle=True, drop_last=True, **dl_cfg
+        )
+        self.val_dl = DataLoader(
+            self.val_dataset, shuffle=False, drop_last=False, **dl_cfg
+        )
 
     def build_model(self):
         self.model = eval_config(self.config["model"])
@@ -47,7 +51,14 @@ class TrainExperiment(BaseExperiment):
         optim_cfg = self.config["optim"].to_dict()
         # TODO add lr_scheduler support
         # self.lr_scheduler = eval_config(opt_cfg.pop('lr_scheduler', None)
-        optim_cfg["params"] = self.model.parameters()
+
+        if "weight_decay" in optim_cfg:
+            optim_cfg["params"] = split_param_groups_by_weight_decay(
+                self.model, optim_cfg["weight_decay"]
+            )
+        else:
+            optim_cfg["params"] = self.model.parameters()
+
         self.optim = eval_config(optim_cfg)
 
     def build_loss(self):
@@ -121,7 +132,9 @@ class TrainExperiment(BaseExperiment):
         return self
 
     def to_device(self):
-        self.model = to_device(self.model, self.device, self.config.get('train.channels_last', False))
+        self.model = to_device(
+            self.model, self.device, self.config.get("train.channels_last", False)
+        )
 
     def run_callbacks(self, callback_group, **kwargs):
         for callback in self.callbacks.get(callback_group, []):
@@ -180,15 +193,19 @@ class TrainExperiment(BaseExperiment):
         grad_enabled = phase == "train"
         augmentation = (phase == "train") and ("augmentations" in self.config)
 
-        self.model.train(grad_enabled) # For dropout, batchnorm, &c
+        self.model.train(grad_enabled)  # For dropout, batchnorm, &c
 
         meters = MeterDict()
 
-        # with torch.set_grad_enabled(grad_enabled):
-        with torch.inference_mode(not grad_enabled):
+        with torch.set_grad_enabled(grad_enabled):
+            # with torch.inference_mode(not grad_enabled):
             for batch_idx, batch in enumerate(dl):
                 outputs = self.run_step(
-                    batch_idx, batch, backward=grad_enabled, augmentation=augmentation
+                    batch_idx,
+                    batch,
+                    backward=grad_enabled,
+                    augmentation=augmentation,
+                    epoch=epoch,
                 )
                 metrics = self.compute_metrics(outputs)
                 meters.update(metrics)
@@ -198,12 +215,14 @@ class TrainExperiment(BaseExperiment):
         self.metrics.log(metrics)
         return metrics
 
-    def run_step(self, batch_idx, batch, backward=True, augmentation=True):
+    def run_step(self, batch_idx, batch, backward=True, augmentation=True, epoch=None):
 
-        x, y = to_device(batch, self.device, self.config.get('train.channels_last', False)
+        x, y = to_device(
+            batch, self.device, self.config.get("train.channels_last", False)
+        )
 
         if augmentation:
-            with torch.inference_mode():
+            with torch.no_grad():
                 x = self.aug_pipeline(x)
 
         yhat = self.model(x)
