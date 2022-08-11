@@ -6,7 +6,8 @@ from .epoch import (
     TerminateOnNaN,
     ETA,
     ModelCheckpoint,
-    JobProgress
+    JobProgress,
+    LogExpr,
 )
 
 from .setup import (

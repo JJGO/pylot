@@ -51,6 +51,18 @@ def TerminateOnNaN(experiment, monitor="loss"):
     return TerminateOnNaNCallback
 
 
+def LogExpr(experiment, **exprs):
+    def LogExprCallback(epoch):
+
+        values = {}
+        for name, expr in exprs.items():
+            values[name] = eval(expr)
+
+        experiment.metricsd["expr"].log({"epoch": epoch, **values})
+
+    return LogExprCallback
+
+
 class ETA:
     def __init__(self, experiment, n_steps=None, print_freq=1, gamma=0.9):
         if n_steps is None:
@@ -113,7 +125,9 @@ class WandbLogger:
         import wandb
 
         wandb.init(
-            project=project, entity=entity, config=exp.config.to_dict(),
+            project=project,
+            entity=entity,
+            config=exp.config.to_dict(),
         )
         wandb.run.name = exp.path.name if name is None else name
 
