@@ -6,11 +6,12 @@ def to_device(inputs, device, channels_last=False):
     # See https://pytorch.org/tutorials/intermediate/memory_format_tutorial.html
     # for info on channels last memory layout
 
-    memory_format = torch.channels_last if channels_last else torch.contiguous_format
 
     if isinstance(inputs, torch.Tensor):
+        memory_format = torch.channels_last if channels_last and len(inputs.shape) == 4 else torch.contiguous_format
         return inputs.to(device, memory_format=memory_format)
     if isinstance(inputs, torch.nn.Module):
+        memory_format = torch.channels_last if channels_last else torch.contiguous_format
         return inputs.to(device, memory_format=memory_format)
     if isinstance(inputs, list):
         return [to_device(x, device, channels_last=channels_last) for x in inputs]
