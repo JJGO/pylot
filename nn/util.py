@@ -30,7 +30,7 @@ def set_batchnorm(
     model: nn.Module,
     learn_affine=True,
     track_running=True,
-    stats: Literal["running", "batch"] = "running",
+    stats: Literal["running", "batch"] = "batch",
 ):
 
     assert stats in ("batch", "running"), 'stats must be one of ["running", "batch"]'
