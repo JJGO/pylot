@@ -14,5 +14,5 @@ class LockMemory:
             )
             self.vals.append(x)
 
-    def __call__(self):
+    def __call__(self, *args, **kwargs):
         pass
