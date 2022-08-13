@@ -29,7 +29,8 @@ class TrainExperiment(BaseExperiment):
 
     def build_data(self):
         data_cfg = self.config["data"].to_dict()
-        dataset_cls = absolute_import(data_cfg.pop("_class"))
+        dataset_constructor = data_cfg.pop('_class', None) or data_cfg.pop('_fn')
+        dataset_cls = absolute_import(dataset_constructor)
 
         self.train_dataset = dataset_cls(split="train", **data_cfg)
         self.val_dataset = dataset_cls(split="val", **data_cfg)
