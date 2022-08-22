@@ -73,6 +73,7 @@ def _store_attr(self, **attrs):
 
 def store_attr(names=None, self=None, but=None, **attrs):
     "Store params named in comma-separated `names` from calling context into attrs in `self`"
+    but = but or []
     fr = inspect.currentframe().f_back
     args, varargs, keyw, locs = inspect.getargvalues(fr)
     if self is None:
