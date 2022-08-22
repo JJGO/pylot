@@ -38,7 +38,12 @@ def check_torch_cudnn_benchmark():
 
 
 def check_environment():
-    from warnings import warn
+    try:
+        from rich.console import Console
+        error_console = Console(stderr=True, style='bold red', highlighter=None)
+        warn = error_console.print
+    except ImportError:
+        from warnings import warn
 
     if not check_numpy_mkl():
         warn("Intel MKL extensions not available for NumPy")
