@@ -5,7 +5,7 @@ import gzip
 import pathlib
 import pickle
 import shutil
-from typing import Union
+from typing import Union, Any
 from contextlib import contextmanager
 
 import numpy as np
@@ -19,6 +19,15 @@ import zstd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+import msgpack
+
+try:
+    import msgpack_numpy as m
+
+    m.patch()
+except ImportError:
+    pass
+
 
 class FileExtensionError(Exception):
     pass
@@ -28,7 +37,7 @@ class FileFormat(ABC):
 
     """
     Base class that other formats inherit from
-    children formats must overload one of (save|encode) and 
+    children formats must overload one of (save|encode) and
     one of (load|decode), the others will get mixin'ed
     """
 
@@ -140,7 +149,7 @@ class YamlFormat(FileFormat):
 
 
 class NumpyJSONEncoder(json.JSONEncoder):
-    """ Special json encoder for numpy types """
+    """Special json encoder for numpy types"""
 
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -343,6 +352,19 @@ class ZstdFormat(FileFormat):
         return zstd.decompress(data)
 
 
+class MsgpackFormat(FileFormat):
+
+    EXTENSIONS = [".msgpack", ".MSGPACK"]
+
+    @classmethod
+    def encode(cls, data: Any) -> bytes:
+        return msgpack.packb(data)
+
+    @classmethod
+    def decode(cls, data: bytes) -> Any:
+        return msgpack.unpackb(data)
+
+
 _DEFAULTFORMAT = {}
 for format_cls in (
     NpyFormat,
@@ -358,6 +380,7 @@ for format_cls in (
     GzipFormat,
     LZ4Format,
     ZstdFormat,
+    MsgpackFormat,
 ):
     for extension in format_cls.EXTENSIONS:
         extension = extension.strip(".")
@@ -423,6 +446,8 @@ def autosave(obj, path: Union[str, pathlib.Path], parents=True) -> object:
 
 @contextmanager
 def inplace_edit(file, backup=False):
+    if isinstance(file, str):
+        file = pathlib.Path(file)
     obj = autoload(file)
     yield obj
     if backup:
