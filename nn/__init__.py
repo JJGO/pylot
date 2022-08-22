@@ -6,3 +6,4 @@ from .nonlinearity import *
 from .util import *
 from .interpolation import *
 from .flatten import *
+from .bufferdict import BufferDict
