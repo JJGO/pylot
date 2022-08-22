@@ -48,7 +48,7 @@ class IndexedDatasetFolder(VisionDataset):
             with open(index, "r") as f:
                 cache = json.load(f)
                 classes, class_to_idx = cache["classes"], cache["class_to_idx"]
-                paths = [root_prefix+rel_path for rel_path in cache["relative_paths"]]
+                paths = [root_prefix + rel_path for rel_path in cache["relative_paths"]]
                 samples = [(path, label) for path, label in zip(paths, cache["labels"])]
 
         if len(samples) == 0:
@@ -102,6 +102,13 @@ class IndexedDatasetFolder(VisionDataset):
 
     def __len__(self):
         return len(self.samples)
+
+    @property
+    def filepaths(self):
+        index = pathlib.Path(self.root).with_suffix(".json")
+        with index.open("r") as f:
+            cache = json.load(f)
+        return cache["relative_paths"]
 
 
 class IndexedImageFolder(IndexedDatasetFolder):
