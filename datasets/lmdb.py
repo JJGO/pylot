@@ -28,8 +28,7 @@ class ImageFolderLMDB(VisionDataset):
         target_transform: Optional[Callable] = None,
     ):
         super().__init__(root, transform=transform, target_transform=target_transform)
-
-        env = lmdb.open(self.root, readonly=True, lock=False)
+        env = lmdb.open(str(self.root), readonly=True, lock=False)
         with env.begin(write=False) as txn:
             index = autodecode(txn.get(b"_index.msgpack"), ".msgpack")
             self.__dict__.update(index)
@@ -46,7 +45,7 @@ class ImageFolderLMDB(VisionDataset):
     def __getitem__(self, i):
         if not hasattr(self, "_env"):
             self._env = lmdb.open(
-                self.root, readonly=True, lock=False, readahead=False, meminit=False
+                str(self.root), readonly=True, lock=False, readahead=False, meminit=False
             )
             self._txn = self._env.begin(write=False)
 
@@ -59,6 +58,8 @@ class ImageFolderLMDB(VisionDataset):
 
         if self.write_mode == "compressed":
             sample = Image.open(io.BytesIO(_bytes))
+            if sample.mode == 'RGBA':
+                sample = sample.convert('RGB')
         else:
             sample = Image.fromarray(autodecode(_bytes, ".msgpack"))
         if self.transform is not None:
