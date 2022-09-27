@@ -52,6 +52,7 @@ class ConvClassifier(nn.Sequential):
     def __post_init__(self):
         super().__init__()
         encoder_kws = self.encoder_kws or {}
+        encoder_kws = {'collapse_spatial': True, **encoder_kws}
         self.encoder = ConvEncoder(self.in_channels, self.filters, **encoder_kws)
         self.flatten = Flatten()
         self.fc = nn.Linear(self.filters[-1], self.n_classes)
