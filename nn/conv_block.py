@@ -52,15 +52,25 @@ class ConvBlock(nn.Module):
                 self.F.add_module(f"n{i}_{self.norm}norm", norm_layer)
 
         if self.residual:
-            shortcut = nn.Identity()
+            self.shortcut = nn.Sequential()
             if self.in_channels != self.filters[-1]:
                 # When channels mismatch, residual op is y= F(x; W_i) + W_s x
                 # Where W_s is a simple matmul that can be implemented with a matmul
-                shortcut = conv_fn(self.in_channels, self.filters[-1], kernel_size=1,)
-            if self.drop_path > 0:
-                shortcut = nn.Sequential(shortcut, DropPath(self.drop_path))
+                conv = conv_fn(
+                    self.in_channels,
+                    self.filters[-1],
+                    kernel_size=1,
+                )
+                self.shortcut.add_module("conv", conv)
 
-            self.shortcut = shortcut
+                if self.norm is not None:
+                    norm_layer = get_normlayer(
+                        self.filters[-1], self.norm, dims=self.dims
+                    )
+                    self.shortcut.add_module(f"{self.norm}norm", norm_layer)
+
+            if self.drop_path > 0:
+                self.shortcut.add_module("drop_path", DropPath(self.drop_path))
 
         self.reset_parameters()
 
