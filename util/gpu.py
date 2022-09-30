@@ -20,7 +20,7 @@ def freest_GPU():
     q = GPUQuery.instance()
     gpus = q.run()
     # The max shenanigans below is just to do argmax
-    freest_gpu = max(range(len(gpus)), key=lambda i: gpus[i]["memory_free"])
+    freest_gpu = max(range(len(gpus)), key=lambda i: gpus[i].memory_free)
     return freest_gpu
 
 
