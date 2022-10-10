@@ -378,6 +378,23 @@ class MsgpackFormat(FileFormat):
     def decode(cls, data: bytes) -> Any:
         return msgpack.unpackb(data)
 
+class PlaintextFormat(FileFormat):
+
+    EXTENSIONS = [".txt", ".TXT", ".log", ".LOG"]
+
+    @classmethod
+    def save(cls, obj, fp):
+        fp = cls.check_fp(fp)
+        if isinstance(obj, list):
+            obj = '\n'.join(obj)
+        with fp.open("w") as f:
+            f.write(obj)
+
+    @classmethod
+    def load(cls, fp) -> object:
+        fp = cls.check_fp(fp)
+        with fp.open("r") as f:
+            return f.read().strip().split('\n')
 
 _DEFAULTFORMAT = {}
 for format_cls in (
@@ -396,6 +413,7 @@ for format_cls in (
     LZ4Format,
     ZstdFormat,
     MsgpackFormat,
+    PlaintextFormat,
 ):
     for extension in format_cls.EXTENSIONS:
         extension = extension.strip(".")
@@ -470,9 +488,6 @@ def inplace_edit(file, backup=False):
     autosave(obj, file)
 
 
-# class PlaintextFormat(FileFormat):
-
-#     EXTENSIONS = [".txt", ".TXT", ".log", ".LOG"]
 
 
 def is_jsonable(x):
