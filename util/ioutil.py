@@ -5,7 +5,7 @@ import gzip
 import pathlib
 import pickle
 import shutil
-from typing import Union, Any
+from typing import Union, Any, Optional, Literal
 from contextlib import contextmanager
 
 import numpy as np
@@ -13,6 +13,7 @@ import torch
 import pandas as pd
 import yaml
 import PIL.Image
+import PIL.JpegImagePlugin
 import lz4.frame
 import zstd
 
@@ -290,27 +291,44 @@ class PickleFormat(FileFormat):
         return pickle.loads(data)
 
 
-class ImageFormat(FileFormat):
-
-    EXTENSIONS = [".png", ".PNG", ".jpg", ".JPG", ".jpeg", ".JPEG"]
-
+class BaseImageFormat(FileFormat):
     @classmethod
-    def save(cls, obj: PIL.Image, fp):
-        fp = cls.check_fp(fp)
+    def encode(cls, obj: PIL.Image):
+        if isinstance(obj, PIL.Image.Image) and hasattr(obj, "filename") and ('.'+obj.format) in cls.EXTENSIONS:
+            # avoid re-encoding, relevant for JPEGs
+            orig = pathlib.Path(obj.filename)
+            with orig.open("rb") as src:
+                data = src.read()
+            return data
+
         if isinstance(obj, torch.Tensor):
             obj = obj.detach().cpu().detach()
         if isinstance(obj, np.ndarray):
             obj = PIL.Image.fromarray(obj)
-        if not isinstance(obj, PIL.Image):
+        if not isinstance(obj, PIL.Image.Image):
             raise TypeError(
                 "Can only serialize PIL.Image|np.ndarray|torch.Tensor objects"
             )
-        obj.save(fp)
+        mem = io.BytesIO()
+        obj.save(mem, format=cls.FORMAT)
+        return mem.getvalue()
 
     @classmethod
     def load(cls, fp) -> PIL.Image:
         fp = cls.check_fp(fp)
         return PIL.Image.open(fp)
+
+
+class JPGFormat(BaseImageFormat):
+
+    EXTENSIONS = [".jpg", ".JPG", ".jpeg", ".JPEG"]
+    FORMAT = "jpeg"
+
+
+class PNGFormat(BaseImageFormat):
+
+    EXTENSIONS = [".png", ".PNG"]
+    FORMAT = "png"
 
 
 class GzipFormat(FileFormat):
@@ -376,7 +394,8 @@ for format_cls in (
     CsvFormat,
     ParquetFormat,
     PickleFormat,
-    ImageFormat,
+    PNGFormat,
+    JPGFormat,
     GzipFormat,
     LZ4Format,
     ZstdFormat,
