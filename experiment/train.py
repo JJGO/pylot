@@ -29,7 +29,7 @@ class TrainExperiment(BaseExperiment):
 
     def build_data(self):
         data_cfg = self.config["data"].to_dict()
-        dataset_constructor = data_cfg.pop('_class', None) or data_cfg.pop('_fn')
+        dataset_constructor = data_cfg.pop("_class", None) or data_cfg.pop("_fn")
         dataset_cls = absolute_import(dataset_constructor)
 
         self.train_dataset = dataset_cls(split="train", **data_cfg)
@@ -211,6 +211,11 @@ class TrainExperiment(BaseExperiment):
                 metrics = self.compute_metrics(outputs)
                 meters.update(metrics)
                 self.run_callbacks("batch", epoch=epoch, batch_idx=batch_idx)
+
+                if phase == "train" and batch_idx > self.config.get(
+                    "train.iterations_per_epoch", float("inf")
+                ):
+                    break
 
         metrics = {"phase": phase, "epoch": epoch, **meters.collect("mean")}
         self.metrics.log(metrics)
