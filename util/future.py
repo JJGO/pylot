@@ -6,5 +6,5 @@ def remove_prefix(key: str, prefix: str) -> str:
 
 def remove_suffix(key: str, suffix: str) -> str:
     if key.endswith(suffix):
-        key = key[len(suffix) :]
+        key = key[:-len(suffix)]
     return key
