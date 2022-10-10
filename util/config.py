@@ -156,6 +156,7 @@ class HDict(MutableMapping):
         if initial is not None:
             if isinstance(initial, HDict):
                 initial = initial.to_dict()
+            initial = unflatten(initial, sep=self._sep)
             self._data = dict(initial)
 
     def __repr__(self):
@@ -214,7 +215,7 @@ class HDict(MutableMapping):
     def update(self, other: Union["HDict", dict]):
         if isinstance(other, HDict):
             other = other._data
-        return deepupdate(self._data, HDict.from_flat(other))
+        return deepupdate(self._data, HDict.from_flat(other, sep=self._sep))
 
     def clear(self):
         return self._data.clear()
