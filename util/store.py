@@ -38,8 +38,6 @@ class AutoStore(collections.abc.MutableMapping):
     def __len__(self):
         with self.db() as db:
             return len(db)
-        with Lmdb.open(str(self._path), "c") as db:
-            return len(db)
 
     def __iter__(self):
         with self.db() as db:
