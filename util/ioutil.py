@@ -477,6 +477,31 @@ def autosave(obj, path: Union[str, pathlib.Path], parents=True) -> object:
     return _DEFAULTFORMAT[ext].save(obj, path)
 
 
+_ENCODERS = {
+    np.ndarray: ".msgpack.lz4",
+    torch.Tensor: ".pt.lz4",
+    PIL.JpegImagePlugin.JpegImageFile: ".jpg",
+    PIL.Image.Image: ".png",
+    pd.DataFrame: ".parquet",
+    (str, list, tuple, dict, int, float, bool, bytes): ".msgpack.lz4",
+    object: ".pkl.lz4",
+}
+
+
+def autopackb(obj: object) -> bytes:
+    for types, ext in _ENCODERS.items():
+        if isinstance(obj, types):
+            break
+    data = autoencode(obj, ext)
+    # doing ext || null || payload is faster than msgpack-ing it
+    return ext.encode() + b"\x00" + data
+
+
+def autounpackb(data: bytes) -> object:
+    ext, _, data = data.partition(b"\x00")
+    return autodecode(data, ext.decode())
+
+
 @contextmanager
 def inplace_edit(file, backup=False):
     if isinstance(file, str):
