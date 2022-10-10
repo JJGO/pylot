@@ -21,13 +21,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 import msgpack
+import msgpack_numpy as m
 
-try:
-    import msgpack_numpy as m
-
-    m.patch()
-except ImportError:
-    pass
+m.patch()
 
 
 class FileExtensionError(Exception):
