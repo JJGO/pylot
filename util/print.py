@@ -4,8 +4,11 @@ def printy(mapping):
     print(yaml.safe_dump(mapping))
 
 
-def hsize(obj):
-    import sys
+def hsizeof(obj, recursive=True):
     from humanize import naturalsize
-
-    return naturalsize(sys.getsizeof(obj))
+    if recursive:
+        from pympler.asizeof import asizeof
+        return naturalsize(asizeof(obj))
+    else:
+        import sys
+        return naturalsize(sys.getsizeof(obj))
