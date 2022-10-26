@@ -4,13 +4,19 @@ import math
 from tabulate import tabulate
 
 from ..util import printc
-from ..util.timer import StatsTimer
+from ..util.timer import StatsTimer, StatsCUDATimer
 from ..util.torchutils import to_device
 
 
-def Throughput(experiment, n_iter=100):
+def Throughput(experiment, cuda=False, n_iter=100):
+    """
+    Callback to measure time taken by data loader and training loop of the experiment.
+    """
 
-    timer = StatsTimer(unit="ms")
+    if cuda:
+        timer = StatsCUDATimer(unit="ms")
+    else:
+        timer = StatsTimer(unit="ms")
 
     # Dataloader throughput
     dl = iter(itertools.cycle(experiment.train_dl))
@@ -22,7 +28,7 @@ def Throughput(experiment, n_iter=100):
     sample_input = to_device(next(iter(experiment.train_dl)), experiment.device)
     for _ in range(n_iter):
         with timer("train-loop"):
-            experiment.run_step("train", sample_input, batch_idx=0)
+            experiment.run_step(batch=sample_input, batch_idx=0)
 
     timer_df = timer.measurements_df()
     timer_df = timer_df.set_index("label")
