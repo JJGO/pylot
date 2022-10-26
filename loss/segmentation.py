@@ -25,7 +25,9 @@ def soft_dice_loss(
     square_denom: bool = True,
     log_loss: bool = False,
 ) -> Tensor:
-
+    """
+    Note: _inputs_as_onehot() will convert inputs from (N, C, H, W) to (N, C, H*W)
+    """
     y_pred, y_true = _inputs_as_onehot(
         y_pred, y_true, mode=mode, from_logits=from_logits
     )
