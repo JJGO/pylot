@@ -86,9 +86,7 @@ class ConvDecoder(nn.Module):
             conv_kws.update(self.conv_kws)
 
         self.layers = nn.ModuleList()
-        for i, (in_ch, out_ch) in enumerate(
-            zip([self.in_channels] + self.filters, self.filters)
-        ):
+        for (in_ch, out_ch) in zip([self.in_channels] + self.filters, self.filters):
             c = ConvBlock(in_ch, [out_ch] * self.convs_per_block, **conv_kws)
             self.layers.append(c)
 
@@ -98,7 +96,7 @@ class ConvDecoder(nn.Module):
             activation=self.out_activation,
             kernel_size=1,
             dims=self.dims,
-            batch_norm=False,
+            norm=None 
         )
 
     def forward(self, x: Tensor) -> Tensor:
