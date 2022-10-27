@@ -1,6 +1,7 @@
 import copy
 from collections import OrderedDict
 from functools import lru_cache
+from fnmatch import fnmatch
 
 from torch import nn
 from ...util.mapping import allbut
@@ -26,25 +27,25 @@ def _voided_class(module_type) -> type:
     return type(
         f"Void{module_type.__name__}",
         (module_type, VoidModule),
-        {
-            "__init__": _init_from_regular,
-            "extra_repr": lambda x: "",
-        },
+        {"__init__": _init_from_regular, "extra_repr": lambda x: "",},
     )
 
 
-def _voidify(module: nn.Module, recurse=True, memo=None, whitelist=None):
+def _voidify(
+    module: nn.Module, recurse=True, memo=None, module_types=None, glob="*", prefix=""
+):
 
     # Skip non parametric modules
     if not any(True for _ in module.parameters()):
         return module
 
     if module not in memo:
+        valid_type = module_types is None or isinstance(module, module_types)
         if len(memo) == 0:
             memo[module] = _voided_class(module.__class__)(module)
         # elif len(module._parameters) == 0:
         #     memo[module] = module
-        elif whitelist is None or isinstance(module, whitelist):
+        elif valid_type and fnmatch(prefix, glob):
             memo[module] = _voided_class(module.__class__)(module)
         else:
             memo[module] = copy.deepcopy(module)
@@ -53,15 +54,21 @@ def _voidify(module: nn.Module, recurse=True, memo=None, whitelist=None):
 
     if recurse:
         for name, submodule in module.named_children():
-            setattr(
-                voided_module,
-                name,
-                _voidify(submodule, memo=memo, whitelist=whitelist),
+            full_name = f"{prefix}.{name}"
+            submodule = _voidify(
+                submodule,
+                memo=memo,
+                module_types=module_types,
+                glob=glob,
+                prefix=full_name,
             )
+            setattr(voided_module, name, submodule)
     return voided_module
 
 
-def voidify(module, recurse=True, whitelist=None):
+def voidify(module, recurse=True, module_types=None, glob="*"):
     memo = {}
-    whitelist = tuple(whitelist) if whitelist is not None else None
-    return _voidify(module, recurse=recurse, whitelist=whitelist, memo=memo)
+    module_types = tuple(module_types) if module_types is not None else None
+    return _voidify(
+        module, recurse=recurse, module_types=module_types, memo=memo, glob=glob
+    )

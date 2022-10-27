@@ -91,3 +91,10 @@ class VoidModule(nn.Module):
         yield
         self.reset_externals()
 
+    # def parameters(self):
+    #     for external in self.externals():
+    #         yield external.data
+
+    # def named_parameters(self):
+    #     for name, external in self.named_externals():
+    #         yield (name, external.data)
