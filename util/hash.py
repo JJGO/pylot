@@ -1,8 +1,9 @@
 import copy
-
+import hashlib
+import json
 
 def make_hash(o):
-
+    raise ValueError('hash is invalid across runtimes')
     """
     Makes a hash from a dictionary, list, tuple or set to any level, that contains
     only other hashable types (including any lists, tuples, sets, and
@@ -24,3 +25,8 @@ def make_hash(o):
         new_o[k] = make_hash(v)
 
     return hash(tuple(frozenset(sorted(new_o.items()))))
+
+
+def json_digest(data) -> str:
+    h = hashlib.sha256(json.dumps(data).encode()).hexdigest()
+    return h
