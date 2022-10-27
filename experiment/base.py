@@ -10,6 +10,7 @@ from ..util.metrics import MetricsDict
 from ..util.config import HDict, FHDict, ImmutableConfig, config_digest
 from ..util.ioutil import autosave
 from ..util.libcheck import check_environment
+from ..util.thunder import ThunderDict
 
 
 def eval_callbacks(all_callbacks, experiment):
@@ -42,6 +43,8 @@ class BaseExperiment:
         self.properties = FHDict(self.path / "properties.json")
         self.metadata = FHDict(self.path / "metadata.json")
         self.metricsd = MetricsDict(self.path)
+
+        self.store = ThunderDict(self.path / "store")
 
         fix_seed(self.config.get("experiment.seed", 42))
         check_environment()
