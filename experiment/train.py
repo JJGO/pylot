@@ -142,9 +142,9 @@ class TrainExperiment(BaseExperiment):
             callback(**kwargs)
 
     def run(self):
+        self.to_device()
         self.build_dataloader()
         self.build_callbacks()
-        self.to_device()
 
         print(f"Running {str(self)}")
         epochs: int = self.config["train.epochs"]
@@ -163,7 +163,7 @@ class TrainExperiment(BaseExperiment):
         checkpoint_freq: int = self.config.get("log.checkpoint_freq", 1)
         eval_freq: int = self.config.get("train.eval_freq", 1)
 
-        self.run_callbacks("setup")
+        # self.run_callbacks("setup")
 
         # try:
 
