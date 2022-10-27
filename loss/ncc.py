@@ -7,10 +7,10 @@ from torch import nn
 from .util import _loss_module_from_func
 
 
-def ncc_loss(input, target, window=9, eps=1e-5):
+def ncc_loss(y_pred, y_true, window=9, eps=1e-5):
 
     # In Pytorch dims are (Batch, Channels, *rest)
-    dims = input.size()[2:]
+    dims = y_pred.size()[2:]
     ndims = len(dims)
 
     # get conv function
@@ -24,14 +24,14 @@ def ncc_loss(input, target, window=9, eps=1e-5):
     assert len(window) == ndims
 
     padding = tuple(math.floor(w / 2) for w in window)
-    sum_filt = torch.ones([1, 1, *window]).to(input.device)
+    sum_filt = torch.ones([1, 1, *window]).to(y_pred.device)
 
     def local_sum(x):
         # TODO padding_mode seems broken in nn.functional
         return conv_fn(x, sum_filt, stride=1, padding=padding)
 
     # Compute intermediate CC terms
-    I, J = input, target
+    I, J = y_pred, y_true
     I2 = I * I
     J2 = J * J
     IJ = I * J
