@@ -9,7 +9,7 @@ from ..util.summary import summary
 from ..metrics import module_table, parameter_table
 
 
-def ParameterTable(experiment, save=True, verbose=False):
+def ParameterTable(experiment, save=True, verbose=True):
 
     df = parameter_table(experiment.model)
     if verbose:
@@ -20,7 +20,7 @@ def ParameterTable(experiment, save=True, verbose=False):
             df.to_csv(f, index=False)
 
 
-def ModuleTable(experiment, save=True, verbose=False):
+def ModuleTable(experiment, save=True, verbose=True):
 
     df = module_table(experiment.model)
     if verbose:
