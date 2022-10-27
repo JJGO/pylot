@@ -14,10 +14,7 @@ def total_variation_loss(
 ):
 
     assert reduction in ("sum", "mean", None)
-    assert penalty in (
-        "l1",
-        "l2",
-    )
+    assert penalty in ("l1", "l2",)
     shape = y_pred.shape[2:]
     ndims = len(shape)
 
