@@ -7,3 +7,5 @@ from .util import *
 from .interpolation import *
 from .flatten import *
 from .bufferdict import BufferDict
+from .spatial_transformer import SpatialTransformer
+from .vmap import *
