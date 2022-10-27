@@ -19,6 +19,7 @@ import zstd
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pyarrow.feather as feather
 
 import msgpack
 import msgpack_numpy as m
@@ -261,6 +262,19 @@ class ParquetFormat(FileFormat):
         df.attrs = json.loads(custom_meta)
         return df
 
+class FeatherFormat(FileFormat):
+    # TODO feather supports lz4 and zstd natively, reject wrapper-compression
+    EXTENSIONS = [".feather", ".FEATHER"]
+
+    @classmethod
+    def save(cls, obj, fp):
+        fp = cls.check_fp(fp)
+        feather.write_feather(obj, fp)
+
+    @classmethod
+    def load(cls, fp) -> object:
+        return feather.read_feather(fp)
+
 
 class PickleFormat(FileFormat):
 
@@ -290,7 +304,11 @@ class PickleFormat(FileFormat):
 class BaseImageFormat(FileFormat):
     @classmethod
     def encode(cls, obj: PIL.Image):
-        if isinstance(obj, PIL.Image.Image) and hasattr(obj, "filename") and ('.'+obj.format) in cls.EXTENSIONS:
+        if (
+            isinstance(obj, PIL.Image.Image)
+            and hasattr(obj, "filename")
+            and ("." + obj.format) in cls.EXTENSIONS
+        ):
             # avoid re-encoding, relevant for JPEGs
             orig = pathlib.Path(obj.filename)
             with orig.open("rb") as src:
@@ -378,6 +396,7 @@ class MsgpackFormat(FileFormat):
     def decode(cls, data: bytes) -> Any:
         return msgpack.unpackb(data)
 
+
 class PlaintextFormat(FileFormat):
 
     EXTENSIONS = [".txt", ".TXT", ".log", ".LOG"]
@@ -386,7 +405,7 @@ class PlaintextFormat(FileFormat):
     def save(cls, obj, fp):
         fp = cls.check_fp(fp)
         if isinstance(obj, list):
-            obj = '\n'.join(obj)
+            obj = "\n".join(obj)
         with fp.open("w") as f:
             f.write(obj)
 
@@ -394,7 +413,8 @@ class PlaintextFormat(FileFormat):
     def load(cls, fp) -> object:
         fp = cls.check_fp(fp)
         with fp.open("r") as f:
-            return f.read().strip().split('\n')
+            return f.read().strip().split("\n")
+
 
 _DEFAULTFORMAT = {}
 for format_cls in (
@@ -406,6 +426,7 @@ for format_cls in (
     JsonlFormat,
     CsvFormat,
     ParquetFormat,
+    FeatherFormat,
     PickleFormat,
     PNGFormat,
     JPGFormat,
@@ -482,7 +503,7 @@ _ENCODERS = {
     torch.Tensor: ".pt.lz4",
     PIL.JpegImagePlugin.JpegImageFile: ".jpg",
     PIL.Image.Image: ".png",
-    pd.DataFrame: ".parquet",
+    pd.DataFrame: ".feather",
     (str, list, tuple, dict, int, float, bool, bytes): ".msgpack.lz4",
     object: ".pkl.lz4",
 }
@@ -511,8 +532,6 @@ def inplace_edit(file, backup=False):
     if backup:
         shutil.copy(file, file.with_suffix(file.suffix + ".bk"))
     autosave(obj, file)
-
-
 
 
 def is_jsonable(x):
