@@ -10,7 +10,7 @@ from ..util.torchutils import to_device
 
 def Throughput(experiment, n_iter=100):
 
-    if 'cuda' in experiment.device:
+    if 'cuda' in str(experiment.device):
         timer = StatsCUDATimer(unit="ms")
     else:
         timer = StatsTimer(unit='ms')
@@ -25,7 +25,7 @@ def Throughput(experiment, n_iter=100):
     sample_input = to_device(next(iter(experiment.train_dl)), experiment.device)
     for _ in range(n_iter):
         with timer("train-loop"):
-            experiment.run_step("train", sample_input, batch_idx=0)
+            experiment.run_step(batch=sample_input, batch_idx=0, backward=True)
 
     timer_df = timer.measurements_df()
     timer_df = timer_df.set_index("label")
