@@ -26,6 +26,7 @@ class HyperNet(nn.Module):
     init_bias: Union[float, str] = 0.0
     rescale_output: bool = False  # TODO
     separate_last: bool = True
+    factor: float = 1
 
     def __post_init__(self, reset=True):
 
@@ -125,7 +126,7 @@ class HyperNet(nn.Module):
 
         if self.separate_last:
             output = {
-                k: self.outputs[k.replace(".", ":")](intermediate).view(
+                k: self.factor * self.outputs[k.replace(".", ":")](intermediate).view(
                     self.output_sizes[k]
                 )
                 for k in self.output_sizes
