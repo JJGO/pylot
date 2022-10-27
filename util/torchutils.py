@@ -15,17 +15,20 @@ def to_device(inputs, device, channels_last=False):
         return inputs.to(device, memory_format=memory_format)
     if isinstance(inputs, list):
         return [to_device(x, device, channels_last=channels_last) for x in inputs]
+    if type(inputs) == tuple:
+        return tuple([to_device(x, device, channels_last=channels_last) for x in inputs])
     if isinstance(inputs, tuple):
         tuple_cls = inputs.__class__  ## to preserve namedtuple
         return tuple_cls(
-            *[(to_device(x, device, channels_last=channels_last) for x in inputs)]
+            *[to_device(x, device, channels_last=channels_last) for x in inputs]
         )
     if isinstance(inputs, dict):
         return {
             k: to_device(v, device, channels_last=channels_last)
             for k, v in inputs.items()
         }
-    raise TypeError(f"Type {type(inputs)} not supported")
+    # raise TypeError(f"Type {type(inputs)} not supported")
+    return inputs
 
 
 def torch_traceback():
