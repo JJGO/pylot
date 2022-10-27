@@ -134,3 +134,13 @@ class GetAttr:
     #     def __getstate__(self): return self.__dict__
     def __setstate__(self, data):
         self.__dict__.update(data)
+
+
+# Retrieves all values from object that are in the __init__ signature
+def get_init_attrs(obj):
+    import inspect
+
+    fn = obj.__class__.__init__
+    params = list(inspect.signature(fn).parameters.keys())[1:]
+    d = {p: obj.__dict__[p] for p in params if p in obj.__dict__}
+    return d
