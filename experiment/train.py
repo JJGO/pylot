@@ -142,12 +142,12 @@ class TrainExperiment(BaseExperiment):
             callback(**kwargs)
 
     def run(self):
+        print(f"Running {str(self)}")
+        epochs: int = self.config["train.epochs"]
         self.to_device()
         self.build_dataloader()
         self.build_callbacks()
 
-        print(f"Running {str(self)}")
-        epochs: int = self.config["train.epochs"]
 
         last_epoch: int = self.properties.get("epoch", -1)
         if last_epoch >= 0:
