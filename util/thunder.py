@@ -75,6 +75,10 @@ class ThunderReader(collections.abc.Mapping):
         self._env = None
         self._txn = None
 
+    def close(self):
+        if self._env:
+            self._env.close()
+
     def _require_env(self):
         if self._env is None:
             self._env = lmdb.open(
@@ -137,6 +141,12 @@ class UniqueThunderReader(ThunderReader):
             instance = super().__new__(cls)
             cls._loaded[path] = instance
         return cls._loaded[path]
+
+    @classmethod
+    def clear(cls):
+        for reader in cls._loaded.values():
+            reader.close()
+        cls._loaded = {}
 
 
 class ThunderLoader(collections.abc.Mapping):
