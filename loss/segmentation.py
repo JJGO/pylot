@@ -35,8 +35,9 @@ def soft_dice_loss(
         batch_reduction=batch_reduction,
         weights=weights,
         ignore_index=ignore_index,
-        eps=eps,
+        from_logits=from_logits,
         smooth=smooth,
+        eps=eps,
         square_denom=square_denom,
     )
 
