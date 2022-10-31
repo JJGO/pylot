@@ -55,16 +55,16 @@ def _inputs_as_onehot(
             y_true = hard_max(y_true)
 
     if mode == "binary":
-        y_true = y_true.view(batch_size, 1, -1)
-        y_pred = y_pred.view(batch_size, 1, -1)
+        y_true = y_true.reshape(batch_size, 1, -1)
+        y_pred = y_pred.reshape(batch_size, 1, -1)
 
     elif mode == "onehot":
-        y_true = y_true.view(batch_size, num_classes, -1)
-        y_pred = y_pred.view(batch_size, num_classes, -1)
+        y_true = y_true.reshape(batch_size, num_classes, -1)
+        y_pred = y_pred.reshape(batch_size, num_classes, -1)
 
     elif mode == "multiclass":
-        y_pred = y_pred.view(batch_size, num_classes, -1)
-        y_true = y_true.view(batch_size, -1)
+        y_pred = y_pred.reshape(batch_size, num_classes, -1)
+        y_true = y_true.reshape(batch_size, -1)
         y_true = F.one_hot(y_true, num_classes).permute(0, 2, 1)
 
     assert y_pred.shape == y_true.shape
