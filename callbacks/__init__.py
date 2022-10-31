@@ -8,6 +8,7 @@ from .epoch import (
     ModelCheckpoint,
     JobProgress,
     LogExpr,
+    WandbLogger,
 )
 
 from .setup import (

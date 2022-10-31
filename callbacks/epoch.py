@@ -10,7 +10,7 @@ import pandas as pd
 
 from pydantic import validate_arguments
 from tabulate import tabulate
-
+from IPython import embed
 
 def PrintLogged(experiment):
     def PrintLoggedCallback(epoch):
@@ -18,9 +18,9 @@ def PrintLogged(experiment):
         df = experiment.metrics.df
         df = df[df.epoch == epoch].drop(columns=["epoch"])
         dfp = pd.pivot(
-            pd.melt(df, id_vars="phase", var_name="metric"),
-            index="metric",
-            columns="phase",
+            pd.melt(df, id_vars="phase", var_name="metric").dropna(subset=["value"]), 
+            index="metric", 
+            columns="phase"
         )
         dfp.columns = [x[1] for x in dfp.columns]
         print(tabulate(dfp, headers="keys"), flush=True)
@@ -111,16 +111,16 @@ class WandbLogger:
     def __init__(self, exp, project=None, entity=None, name=None):
         self.exp = exp
 
-        from ..experiment import TrainExperiment, UniversegExperiment
+        # from ..experiment import TrainExperiment, UniversegExperiment
 
-        if type(exp) == TrainExperiment:
-            if project is None:
-                project = f"Baseline-{exp.config['data.dataset']}-ax:{exp.config['data.axis']}"
-        elif type(exp) == UniversegExperiment:
-            if project is None:
-                project = f"MegaMedical-{self.exp.train_dataset.version}"
-        else:
-            raise TypeError(f"Invalid experiment type {self.exp.__class__.__name__}")
+        # if type(exp) == TrainExperiment:
+        #     if project is None:
+        #         project = f"Baseline-{exp.config['data.dataset']}-ax:{exp.config['data.axis']}"
+        # elif type(exp) == UniversegExperiment:
+        #     if project is None:
+        #         project = f"MegaMedical-{self.exp.train_dataset.version}"
+        # else:
+        #     raise TypeError(f"Invalid experiment type {self.exp.__class__.__name__}")
 
         import wandb
 
@@ -164,7 +164,7 @@ class ModelCheckpoint:
         self.save_top_k = save_top_k
         self.save_freq = save_freq
 
-        min_patterns = ["*loss*", "*err*"]
+        min_patterns = ["*loss*", "*err*", "*Loss*"]
         max_patterns = ["*acc*", "*precision*", "*score*"]
 
         if mode == "auto":
