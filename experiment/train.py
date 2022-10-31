@@ -227,10 +227,6 @@ class TrainExperiment(BaseExperiment):
             batch, self.device, self.config.get("train.channels_last", False)
         )
 
-        if augmentation:
-            with torch.no_grad():
-                x = self.aug_pipeline(x)
-
         yhat = self.model(x)
         loss = self.loss_func(yhat, y)
 
@@ -251,9 +247,6 @@ class TrainExperiment(BaseExperiment):
         return metrics
 
     def build_augmentations(self):
-        # if "augmentations" in self.config:
-        #     aug_cfg = self.config.to_dict()["augmentations"]
-        #     self.aug_pipeline = augmentations_from_config(aug_cfg)
         pass
 
 
