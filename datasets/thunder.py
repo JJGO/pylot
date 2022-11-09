@@ -4,18 +4,22 @@ from typing import List
 from torch.utils.data import Dataset
 from pydantic import validate_arguments
 
-from ..util import UniqueThunderReader, ThunderLoader
+from ..util import UniqueThunderReader, ThunderLoader, ThunderReader
 
 
 class ThunderDataset(Dataset):
     @validate_arguments
-    def __init__(self, path: pathlib.Path, preload: bool = False):
+    def __init__(
+        self, path: pathlib.Path, preload: bool = False, reuse_fp: bool = True
+    ):
         self._path = path
         self.preload = preload
         if preload:
             self._db = ThunderLoader(path)
-        else:
+        elif reuse_fp:
             self._db = UniqueThunderReader(path)
+        else:
+            self._db = ThunderReader(path)
 
         self.samples: List[str] = self._db["_samples"]
         self.attrs = self._db.get("_attrs", {})
