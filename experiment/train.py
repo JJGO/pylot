@@ -148,7 +148,6 @@ class TrainExperiment(BaseExperiment):
         self.build_dataloader()
         self.build_callbacks()
 
-
         last_epoch: int = self.properties.get("epoch", -1)
         if last_epoch >= 0:
             self.load(tag="last")
@@ -210,12 +209,7 @@ class TrainExperiment(BaseExperiment):
                 )
                 metrics = self.compute_metrics(outputs)
                 meters.update(metrics)
-                self.run_callbacks("batch", epoch=epoch, batch_idx=batch_idx)
-
-                if phase == "train" and batch_idx > self.config.get(
-                    "train.iterations_per_epoch", float("inf")
-                ):
-                    break
+                self.run_callbacks("batch", epoch=epoch, batch_idx=batch_idx, phase=phase)
 
         metrics = {"phase": phase, "epoch": epoch, **meters.collect("mean")}
         self.metrics.log(metrics)
