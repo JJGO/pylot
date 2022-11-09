@@ -5,6 +5,7 @@ import pathlib
 import collections
 from typing import Optional
 from fnmatch import fnmatch
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 from tqdm.auto import tqdm
 import pandas as pd
@@ -213,7 +214,48 @@ class ResultsLoader:
 
     def load_all(self, *paths, shorthand=True, **selector):
 
-        dfc = self.load_configs(*paths, shorthand=shorthand,).select(**selector).copy()
+        dfc = (
+            self.load_configs(
+                *paths,
+                shorthand=shorthand,
+            )
+            .select(**selector)
+            .copy()
+        )
         df = self.load_metrics(dfc)
         dfa = self.load_aggregate(dfc, df)
         return dfc, df, dfa
+
+    def load_from_callable(self, config_df, load_fn, copy_cols=None, prefix="data"):
+
+        if copy_cols is None:
+            copy_cols = config_df.columns.to_list()
+
+        def do_row(row):
+            row = row.to_dict()
+            data_df = load_fn(row["path"])
+            if prefix:
+                data_df.rename(
+                    columns={
+                        c: f"{prefix}.{c}" for c in data_df.columns if c in copy_cols
+                    },
+                    inplace=True,
+                )
+            for col in copy_cols:
+                val = row[col]
+                if isinstance(val, tuple):
+                    data_df[col] = np.array(itertools.repeat(val, len(data_df)))
+                else:
+                    data_df[col] = val
+            return data_df
+
+        with ThreadPoolExecutor(max_workers=self._num_workers) as executor:
+            data_dfs = list(
+                tqdm(
+                    executor.map(do_row, (row for _, row in config_df.iterrows())),
+                    total=len(config_df),
+                    leave=False,
+                )
+            )
+
+        return pd.concat(data_dfs, ignore_index=True)
