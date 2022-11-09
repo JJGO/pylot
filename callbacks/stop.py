@@ -1,5 +1,5 @@
 import sys
-from typing import Literal
+from typing import Literal, Optional
 from fnmatch import fnmatch
 
 import numpy as np
@@ -17,6 +17,7 @@ class EarlyStopping:
         mode: Literal["auto", "min", "max"] = "auto",
         check_finite: bool = True,
         phase: str = "val",
+        smooth: Optional[float] = None,
     ):
 
         assert min_delta >= 0.0
@@ -27,6 +28,7 @@ class EarlyStopping:
         self.min_delta = min_delta
         self.phase = phase
         self.check_finite = check_finite
+        self.smooth = smooth
 
         self._set_mode(mode)
 
@@ -51,26 +53,36 @@ class EarlyStopping:
         metrics = metrics[metrics.phase == self.phase]
 
         if self.check_finite and not np.isfinite(metrics[self.monitor]).all():
-            print(f"Encountered non-finite value for {self.phase} {self.monitor}", file=sys.stderr)
-            sys.exit(1)
- 
+            print(
+                f"Epoch {epoch}: Encountered non-finite value for {self.phase} {self.monitor}",
+                file=sys.stderr,
+            )
+            sys.exit(0)
+
         quantity = self.monitor
+        if self.smooth is not None:
+            metrics[quantity] = metrics[quantity].ewm(alpha=self.smooth).mean()
 
         last_epoch = metrics.epoch.max()
 
         previous = metrics[metrics.epoch < last_epoch - self.patience]
         recent = metrics[metrics.epoch >= last_epoch - self.patience]
 
-        fn = {'max': np.max, 'min': np.min}[self.mode]
-        cmp = {'max': np.greater, 'min': np.less}[self.mode]
+        fn = {"max": np.max, "min": np.min}[self.mode]
+        cmp = {"max": np.greater, "min": np.less}[self.mode]
         # Non-recent is better than recent
-        if cmp( fn(previous[quantity]), fn(recent[quantity])):
-            print(f"{quantity} has not improved for {self.patience} epochs", file=sys.stderr)
-            sys.exit(1)
+        if cmp(fn(previous[quantity]), fn(recent[quantity])):
+            print(
+                f"Epoch {epoch}: {quantity} has not improved for {self.patience} epochs",
+                file=sys.stderr,
+            )
+            sys.exit(0)
 
-        if abs( np.min(recent[quantity] - np.max(recent[quantity]) ) < self.min_delta:
-            print(f"{quantity} has improved less than {self.min_delta} in the last {self.patience} epochs", file=sys.stderr)
-            sys.exit(1)
-
-
-
+        if len(previous) > 0 and (
+            abs(np.min(recent[quantity] - np.max(recent[quantity]))) <= self.min_delta
+        ):
+            print(
+                f"Epoch {epoch}: {quantity} has improved less than {self.min_delta} in the last {self.patience} epochs",
+                file=sys.stderr,
+            )
+            sys.exit(0)
