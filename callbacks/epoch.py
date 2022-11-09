@@ -107,45 +107,6 @@ class ETA:
         return fmt.format(**d)
 
 
-class WandbLogger:
-    def __init__(self, exp, project=None, entity=None, name=None):
-        self.exp = exp
-
-        from ..experiment import TrainExperiment, UniversegExperiment
-
-        if type(exp) == TrainExperiment:
-            if project is None:
-                project = f"Baseline-{exp.config['data.dataset']}-ax:{exp.config['data.axis']}"
-        elif type(exp) == UniversegExperiment:
-            if project is None:
-                project = f"MegaMedical-{self.exp.train_dataset.version}"
-        else:
-            raise TypeError(f"Invalid experiment type {self.exp.__class__.__name__}")
-
-        import wandb
-
-        wandb.init(
-            project=project,
-            entity=entity,
-            config=exp.config.to_dict(),
-        )
-        wandb.run.name = exp.path.name if name is None else name
-
-    def __call__(self, epoch):
-        df = self.exp.metrics.df
-        df = df[df.epoch == epoch]
-        update = {}
-        for _, row in df.iterrows():
-            phase = row["phase"]
-            dice = row["dice_score"]
-            loss = row["loss"]
-            update[f"{phase}_dice"] = dice
-            update[f"{phase}_loss"] = loss
-        import wandb
-
-        wandb.log(update)
-
-
 class ModelCheckpoint:
     @validate_arguments
     def __init__(
