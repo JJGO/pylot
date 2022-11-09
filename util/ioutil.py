@@ -16,6 +16,7 @@ import PIL.Image
 import PIL.JpegImagePlugin
 import lz4.frame
 import zstd
+import xxhash
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -261,6 +262,7 @@ class ParquetFormat(FileFormat):
         custom_meta = table.schema.metadata.get(b"custom_metadata", "{}")
         df.attrs = json.loads(custom_meta)
         return df
+
 
 class FeatherFormat(FileFormat):
     # TODO feather supports lz4 and zstd natively, reject wrapper-compression
@@ -521,6 +523,11 @@ def autopackb(obj: object) -> bytes:
 def autounpackb(data: bytes) -> object:
     ext, _, data = data.partition(b"\x00")
     return autodecode(data, ext.decode())
+
+
+def autohash(value: object) -> str:
+    data = autopackb(value)
+    return xxhash.xxh3_64_hexdigest(data)
 
 
 @contextmanager
