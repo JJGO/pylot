@@ -45,7 +45,11 @@ class ImageFolderLMDB(VisionDataset):
     def __getitem__(self, i):
         if not hasattr(self, "_env"):
             self._env = lmdb.open(
-                str(self.root), readonly=True, lock=False, readahead=False, meminit=False
+                str(self.root),
+                readonly=True,
+                lock=False,
+                readahead=False,
+                meminit=False,
             )
             self._txn = self._env.begin(write=False)
 
@@ -58,8 +62,8 @@ class ImageFolderLMDB(VisionDataset):
 
         if self.write_mode == "compressed":
             sample = Image.open(io.BytesIO(_bytes))
-            if sample.mode == 'RGBA':
-                sample = sample.convert('RGB')
+            if sample.mode == "RGBA" or sample.mode == "L":
+                sample = sample.convert("RGB")
         else:
             sample = Image.fromarray(autodecode(_bytes, ".msgpack"))
         if self.transform is not None:
@@ -116,59 +120,62 @@ class ImageFolderLMDB(VisionDataset):
                     db[relpaths[i]] = image_bytes
         return cls(outfile)
 
-
     @classmethod
     def fromdataset(
         cls,
         dataset: VisionDataset,
         outfile: str,
         max_workers: int = 0,
-    ) -> 'ImageFolderLMDB':
+    ) -> "ImageFolderLMDB":
 
-
-        classes = dataset.classes if hasattr(dataset, 'classes') else sorted(np.unique(dataset.targets).tolist())
+        classes = (
+            dataset.classes
+            if hasattr(dataset, "classes")
+            else sorted(np.unique(dataset.targets).tolist())
+        )
 
         global _load
 
         def _load(idx):
             image, _ = dataset[idx]
-            array = np.array(image.convert('RGB'))
-            return autoencode(array, '.msgpack')
+            array = np.array(image.convert("RGB"))
+            return autoencode(array, ".msgpack")
 
         N = math.ceil(math.log10(len(dataset)))
 
         # We use lmdbm for writing only as it makes autogrowing the DB easier
         from lmdbm import Lmdb
-        with Lmdb.open(outfile, 'c', map_size=2**32) as db:
+
+        with Lmdb.open(outfile, "c", map_size=2**32) as db:
 
             paths = []
 
             if max_workers > 0:
                 with ProcessPoolExecutor(max_workers=max_workers) as executor:
                     for i, image_bytes in enumerate(
-                        tqdm(executor.map(_load, range(len(dataset))), total=len(dataset))
+                        tqdm(
+                            executor.map(_load, range(len(dataset))), total=len(dataset)
+                        )
                     ):
-                        path = f'{i:0{N}d}'
+                        path = f"{i:0{N}d}"
                         db[path] = image_bytes
                         paths.append(path)
             else:
                 for i in tqdm(range(len(dataset))):
-                    path = f'{i:0{N}d}'
+                    path = f"{i:0{N}d}"
                     db[path] = _load(i)
                     paths.append(path)
 
-
             index = {
-                'classes': classes,
-                'paths': paths,
-                'targets': dataset.targets,
-                'write_mode': 'raw',
+                "classes": classes,
+                "paths": paths,
+                "targets": dataset.targets,
+                "write_mode": "raw",
             }
 
             db["_index.msgpack"] = autoencode(index, "_index.msgpack")
 
         return cls(outfile)
-
 
 
 if __name__ == "__main__":
