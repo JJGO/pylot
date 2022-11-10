@@ -185,3 +185,11 @@ def JobProgress(experiment):
             pass
 
         return DummyCallback
+
+
+def Timestamp(experiment):
+
+    def TimestampCallback(epoch):
+        experiment.metricsd["timestamp"].log({"epoch": epoch, "timestamp": time.time()})
+
+    return TimestampCallback
