@@ -1,131 +1,15 @@
-from collections import Counter
-from datetime import datetime
-import os
 import platform
-import psutil
-import time
 import subprocess
 import sys
-from torch.utils.collect_env import get_env_info
+import time
+from datetime import datetime
+
+import jc
+import psutil
+import torch
 
 
-def get_size(bytes, suffix="B"):
-    """
-    Scale bytes to its proper format
-    e.g:
-        1253656 => '1.20MB'
-        1253656678 => '1.17GB'
-    """
-    factor = 1024
-    for unit in ["", "K", "M", "G", "T", "P"]:
-        if bytes < factor:
-            return f"{bytes:.2f}{unit}{suffix}"
-        bytes /= factor
-
-
-_EXCLUDES = [
-    "S3_HOST",
-    "S3_KEY",
-    "S3_SECRET",
-    "REDIS_URL",
-    "GIT_PAGER",
-    "SSH_CLIENT",
-    "SSH_CONNECTION",
-    "SSH_TTY",
-    "TERM",
-    "XDG_SESSION_ID",
-    "XDG_RUNTIME_DIR",
-    "P9K_TTY",
-    "LESS_TERMCAP_mb",
-    "LESS_TERMCAP_md",
-    "LESS_TERMCAP_me",
-    "LESS_TERMCAP_se",
-    "LESS_TERMCAP_so",
-    "LESS_TERMCAP_ue",
-    "LESS_TERMCAP_us",
-    "LS_COLORS",
-    "GREP_COLOR",
-    "GREP_COLORS",
-    "P9K_SSH",
-    "LSCOLORS",
-    "CLICOLOR",
-    "ANSIBLE_NOCOWS",
-    "SSH_AUTH_SOCK",
-    "SSH_AGENT_PID",
-    "PORT0",
-    "PORT1",
-    "PORT2",
-    "PORT3",
-    "PORT4",
-    "PORT5",
-    "PORT6",
-    "PORT7",
-    "PORT8",
-    "PORT9",
-    "_CE_CONDA",
-    "_CE_M",
-    "NCURSES_NO_UTF8_ACS",
-    "EDITOR",
-    "VISUAL",
-    "PAGER",
-    "NCURSES_NO_UTF8_ACS",
-    "LESS",
-    "LESSOPEN",
-    "MAIL",
-    "CONDA_PROMPT_MODIFIER",
-    "COMP_KNOWN_HOSTS_WITH_HOSTFILE",
-    "is_vim",
-    "tmux_version",
-    "wg_is_keys_off",
-    "LANG",
-    "LANGUAGE",
-    "S_COLORS",
-    "XDG_DATA_DIRS",
-    "MANPATH",
-    "CONDA_SHLVL",
-    "SHLVL",
-    "TMUX",
-    "TMUX_PANE",
-    "TMUX_PLUGIN_MANAGER_PATH",
-    "TERMCAP",
-    "STY",
-    "EOD",
-    "WINDOW",
-    "ET_VERSION",
-    "FINGERS_ALT_ACTION",
-    "FINGERS_COMPACT_HINTS",
-    "FINGERS_COPY_COMMAND",
-    "FINGERS_COPY_COMMAND_UPPERCASE",
-    "FINGERS_CTRL_ACTION",
-    "FINGERS_HIGHLIGHT_FORMAT",
-    "FINGERS_HIGHLIGHT_FORMAT_NOCOLOR",
-    "FINGERS_HIGHLIGHT_FORMAT_NOCOMPACT",
-    "FINGERS_HIGHLIGHT_FORMAT_NOCOMPACT_NOCOLOR",
-    "FINGERS_HINT_FORMAT",
-    "FINGERS_HINT_FORMAT_NOCOLOR",
-    "FINGERS_HINT_FORMAT_NOCOMPACT",
-    "FINGERS_HINT_FORMAT_NOCOMPACT_NOCOLOR",
-    "FINGERS_HINT_POSITION",
-    "FINGERS_HINT_POSITION_NOCOMPACT",
-    "FINGERS_KEYBOARD_LAYOUT",
-    "FINGERS_MAIN_ACTION",
-    "FINGERS_PATTERNS",
-    "FINGERS_SELECTED_HIGHLIGHT_FORMAT",
-    "FINGERS_SELECTED_HIGHLIGHT_FORMAT_NOCOLOR",
-    "FINGERS_SELECTED_HIGHLIGHT_FORMAT_NOCOMPACT",
-    "FINGERS_SELECTED_HIGHLIGHT_FORMAT_NOCOMPACT_NOCOLOR",
-    "FINGERS_SELECTED_HINT_FORMAT",
-    "FINGERS_SELECTED_HINT_FORMAT_NOCOLOR",
-    "FINGERS_SELECTED_HINT_FORMAT_NOCOMPACT",
-    "FINGERS_SELECTED_HINT_FORMAT_NOCOMPACT_NOCOLOR",
-    "FINGERS_SHIFT_ACTION",
-    "FINGERS_SYSTEM_COPY_COMMAND",
-    "FINGERS_SYSTEM_OPEN_COMMAND",
-    "FPATH",
-]
-
-
-def info_system():
+def platform_info():
     return {
         "system": platform.system(),
         "release": platform.release(),
@@ -137,73 +21,70 @@ def info_system():
     }
 
 
-def get_hardware_info():
-    # https://www.thepythoncode.com/article/get-hardware-system-information-python
-    hw = {}
-
-    cpu = {}
-    cpu["physical_cores"] = str(psutil.cpu_count(logical=False))
-    cpu["total_cores"] = str(psutil.cpu_count(logical=True))
-
-    cpufreq = psutil.cpu_freq()
-    cpu["freq_max"] = f"{cpufreq.max/1000:.2f}GHz"
-    cpu["freq_min"] = f"{cpufreq.min/1000:.2f}GHz"
-    cpu["freq_current"] = f"{cpufreq.current/1000:.2f}GHz"
-    # cpu["usages"] = list(psutil.cpu_percent(percpu=True, interval=1))
-    cpu["percent"] = f"{psutil.cpu_percent()}%"
-
-    hw["cpu"] = cpu
-
-    svmem = psutil.virtual_memory()
-    memory = {}
-    memory["total"] = get_size(svmem.total)
-    memory["available"] = get_size(svmem.available)
-    memory["used"] = get_size(svmem.used)
-    memory["percent"] = str(svmem.percent) + "%"
-    hw["memory"] = memory
-    return hw
+def sys_info():
+    return {
+        "executable": sys.executable,
+        "version": sys.version,
+    }
 
 
-def get_full_env_info():
-
-    system_env = info_system()
-
-    # PyTorch env
-    env_namedtuple = get_env_info()
-    pytorch_env = dict(env_namedtuple._asdict())
-    pytorch_env['torch_version'] = str(pytorch_env['torch_version'])
-    if pytorch_env["pip_packages"] is not None:
-        pytorch_env["pip_packages"] = {
-            k: v
-            for k, v in [
-                line.split("==") for line in pytorch_env["pip_packages"].split("\n")
-            ]
-        }
-    if pytorch_env["conda_packages"]:
-        pytorch_env["conda_packages"] = {
-            k: v
-            for k, v, *_ in [
-                line.split() for line in pytorch_env["conda_packages"].split("\n")
-            ]
-        }
-
-    if pytorch_env["nvidia_gpu_models"] is not None:
-        pytorch_env["nvidia_gpu_models"] = [
-            line for line in pytorch_env["nvidia_gpu_models"].split("\n")
-        ]
-
-    pytorch_env["executable"] = sys.executable
-
-    # Env
-    environ = dict(os.environ)
-
-    for k in _EXCLUDES:
-        environ.pop(k, None)
-
-    hw = get_hardware_info()
-    when = dict(
-        timestamp=time.time(),
-        date=datetime.now().astimezone().replace(microsecond=0).isoformat(),
+def pip_packages():
+    pip_list_output = subprocess.check_output(
+        [sys.executable, "-m", "pip", "list"], text=True, stderr=subprocess.DEVNULL
     )
+    packages = jc.parse("pip-list", pip_list_output)
+    packages = dict(list(map(lambda x: x.values(), packages)))
+    return packages
 
-    return dict(sys=system_env, python=pytorch_env, environ=environ, when=when, hw=hw)
+
+def hardware_info():
+    # https://www.thepythoncode.com/article/get-hardware-system-information-python
+    cpufreq = psutil.cpu_freq()
+    svmem = psutil.virtual_memory()
+    return {
+        "cpu": {
+            "physical_cores": str(psutil.cpu_count(logical=False)),
+            "total_cores": str(psutil.cpu_count(logical=True)),
+            "freq_max": f"{cpufreq.max/1000:.2f}GHz",
+            "freq_min": f"{cpufreq.min/1000:.2f}GHz",
+            "freq_current": f"{cpufreq.current/1000:.2f}GHz",
+            "percent": f"{psutil.cpu_percent()}%",
+        },
+        "memory": {
+            "total": svmem.total,
+            "available": svmem.available,
+            "used": svmem.used,
+            "percent": str(svmem.percent) + "%",
+        },
+    }
+
+
+def torch_info():
+    info = torch.utils.collect_env.get_env_info()._asdict()
+    # fmt: off
+    if info['pip_packages'] is not None:
+        info['pip_packages'] = {k: v for k, v in [line.split("==") for line in info["pip_packages"].split("\n")]}
+    if info['conda_packages'] is not None:
+        info["conda_packages"] = {k: v for k, v, *_ in [line.split() for line in info["conda_packages"].split("\n")]}
+    if info['nvidia_gpu_models'] is not None:
+        info["nvidia_gpu_models"] = [line for line in info["nvidia_gpu_models"].split("\n")]
+    # fmt: on
+    return info
+
+
+def when_info():
+    return {
+        "timestamp": time.time(),
+        "data": datetime.now().astimezone().replace(microsecond=0).isoformat(),
+    }
+
+
+def full_env_info():
+    return {
+        "platform": platform_info(),
+        "sys": sys_info(),
+        "pip": pip_packages(),
+        "hardware": hardware_info(),
+        "torch": torch_info(),
+        "when": when_info(),
+    }
