@@ -2,7 +2,7 @@ from .automap import AutoMap
 from .color import printc
 from .config import Config, HDict, FHDict
 from .debug import printcall
-from .env import get_full_env_info
+from .env import full_env_info
 from .filecache import FileCache
 from .fzf import fzf
 from .ioutil import *
@@ -15,7 +15,7 @@ from .metrics import MetricsDict, MetricsStore
 from .more_functools import partial, memoize, newobj
 from .notify import beep
 from .shapecheck import ShapeChecker
-from .pipes import redirect_std, Tee, quiet_std, Unbuffered, Capturing
+from .pipes import redirect_std, Tee, quiet_std, Unbuffered, Capturing, temporary_save_path
 from .print import printy, hsizeof
 from .s3 import S3Path, make_path
 from .store import AutoStore
