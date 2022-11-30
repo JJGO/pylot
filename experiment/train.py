@@ -170,7 +170,7 @@ class TrainExperiment(BaseExperiment):
             print(f"Start epoch {epoch}")
             self._epoch = epoch
             self.run_phase("train", epoch)
-            if epoch % eval_freq == 0 or epoch == epochs - 1:
+            if eval_freq > 0 and (epoch % eval_freq == 0 or epoch == epochs - 1):
                 self.run_phase("val", epoch)
 
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
@@ -209,7 +209,9 @@ class TrainExperiment(BaseExperiment):
                 )
                 metrics = self.compute_metrics(outputs)
                 meters.update(metrics)
-                self.run_callbacks("batch", epoch=epoch, batch_idx=batch_idx, phase=phase)
+                self.run_callbacks(
+                    "batch", epoch=epoch, batch_idx=batch_idx, phase=phase
+                )
 
         metrics = {"phase": phase, "epoch": epoch, **meters.collect("mean")}
         self.metrics.log(metrics)
