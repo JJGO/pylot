@@ -21,6 +21,19 @@ def hard_max(x: Tensor):
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
+def _infer_mode(
+    y_pred: Tensor,
+    y_true: Tensor,
+) -> InputMode:
+    batch_size, num_classes = y_pred.shape[:2]
+
+    if y_pred.shape == y_true.shape:
+        return "binary" if num_classes == 1 else "onehot"
+    else:
+        return "multiclass"
+
+
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
 def _inputs_as_onehot(
     y_pred: Tensor,
     y_true: Tensor,
@@ -111,6 +124,8 @@ def _inputs_as_longlabels(
 
     assert y_pred.shape == y_true.shape
     return y_pred, y_true.long()
+
+
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
