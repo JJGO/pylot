@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from typing import Optional, Any, Union, Literal, List
+from typing import Optional, Union, Literal, List, Any, Dict
 
 import torch.nn as nn
 
 from .nonlinearity import get_nonlinearity
 from .init import initialize_layer
-from .norm import get_normlayer
+from .norm import get_normlayer, NormType
 from .drop import DropPath
 from ..util.validation import validate_arguments_init
 
@@ -17,13 +17,14 @@ class ConvBlock(nn.Module):
     in_channels: int
     filters: List[int]
     kernel_size: Union[int, List[int]] = 3
-    norm: Literal[None, "batch", "layer", "instance", "group"] = None
+    norm: Optional[NormType] = None
     activation: Optional[str] = "LeakyReLU"
     residual: bool = False
     drop_path: float = 0.0
     init_distribution: Optional[str] = "kaiming_normal"
     init_bias: Union[float, int] = 0.0
     dims: Literal[1, 2, 3] = 2
+    norm_kws: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         super().__init__()
@@ -48,7 +49,7 @@ class ConvBlock(nn.Module):
                 self.F.add_module(f"n{i}_act", nonlinearity_fn())
 
             if self.norm is not None:
-                norm_layer = get_normlayer(n_out, self.norm, dims=self.dims)
+                norm_layer = get_normlayer(n_out, self.norm, dims=self.dims, **(self.norm_kws or {}))
                 self.F.add_module(f"n{i}_{self.norm}norm", norm_layer)
 
         if self.residual:
@@ -65,7 +66,7 @@ class ConvBlock(nn.Module):
 
                 if self.norm is not None:
                     norm_layer = get_normlayer(
-                        self.filters[-1], self.norm, dims=self.dims
+                        self.filters[-1], self.norm, dims=self.dims, **(self.norm_kws or {})
                     )
                     self.shortcut.add_module(f"{self.norm}norm", norm_layer)
 

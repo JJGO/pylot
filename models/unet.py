@@ -19,7 +19,6 @@ class UNet(nn.Module):
     out_activation: Optional[str] = None
     convs_per_block: int = 1
     skip_connections: bool = True
-    batch_norm: bool = True
     dims: int = 2
     interpolation_mode: str = "linear"
     conv_kws: Optional[Dict[str, Any]] = None
@@ -37,7 +36,6 @@ class UNet(nn.Module):
         self.up_blocks = nn.ModuleList()
 
         conv_args = dict(
-            batch_norm=self.batch_norm,
             dims=self.dims,
         )
         if self.conv_kws:
@@ -62,7 +60,7 @@ class UNet(nn.Module):
             activation=None,
             kernel_size=1,
             dims=self.dims,
-            batch_norm=False,
+            norm=None,
         )
 
         if self.interpolation_mode == "linear":
