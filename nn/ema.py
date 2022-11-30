@@ -4,7 +4,9 @@
 # - https://github.com/fadel/pytorch_ema/blob/master/torch_ema/ema.py
 # - https://github.com/benihime91/gale/blob/master/gale/collections/callbacks/ema.py#L20
 # - https://www.zijianhu.com/post/pytorch/ema/
+# - https://docs.mosaicml.com/en/v0.11.1/api_reference/generated/composer.algorithms.EMA.html#composer.algorithms.EMA
 import copy
+import math
 from typing import Optional
 
 import torch
@@ -32,7 +34,21 @@ class ModelEMA(nn.Module):
     """
 
     @validate_arguments
-    def __init__(self, model, decay: float = 0.9999, device: Optional[str] = None):
+    def __init__(
+        self,
+        model,
+        decay: Optional[float] = None,
+        half_life: Optional[int] = None,
+        device: Optional[str] = None,
+    ):
+        assert (decay is None) ^ (
+            half_life is None
+        ), "either decay or half_life must be None"
+        if decay is None and half_life is None:
+            decay = 0.9999
+        if half_life is not None:
+            decay = math.exp(-math.log(2) / half_life)
+
         super().__init__()
         if decay <= 0.0 or decay >= 1.0:
             raise ValueError("Decay must be between 0 and 1")
@@ -40,6 +56,7 @@ class ModelEMA(nn.Module):
         self.module = copy.deepcopy(model)
         self.module.eval()
         self.decay = decay
+        self.half_life = half_life
         self.device = device  # perform ema on different device from model if set
         if self.device is not None:
             self.module.to(device=device)
