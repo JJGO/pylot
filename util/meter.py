@@ -5,8 +5,9 @@ from heapq import heappop, heappush
 from collections import defaultdict
 
 import numpy as np
+import torch
 
-Numeric = Union[np.ndarray, int, float]
+Numeric = Union[np.ndarray, torch.Tensor, int, float]
 Numerics = Union[Iterable[Numeric]]
 
 
@@ -112,7 +113,7 @@ class StatsMeter(Meter):
         stats = StatsMeter()
         stats.n = n
         stats.mean = mean
-        stats.S = std ** 2 * n
+        stats.S = std**2 * n
         return stats
 
     @staticmethod
@@ -170,7 +171,7 @@ class StatsMeter(Meter):
 
     def __mul__(self, k: Union[float, int]) -> "StatsMeter":
         # Multiply all values seen by some constant
-        return StatsMeter.from_raw_values(self.n, self.mean * k, self.S * k ** 2)
+        return StatsMeter.from_raw_values(self.n, self.mean * k, self.S * k**2)
 
     def asdict(self) -> dict:
         return {"mean": self.mean, "std": self.std, "n": self.n}
@@ -183,7 +184,7 @@ class StatsMeter(Meter):
     @property
     def flatvariance(self) -> float:
         # for datapoints which are arrays
-        return np.mean(self.variance + self.mean ** 2) - self.flatmean ** 2
+        return np.mean(self.variance + self.mean**2) - self.flatmean**2
 
     @property
     def flatstd(self) -> float:
@@ -251,3 +252,37 @@ class MedianMeter(Meter):
 
     def asdict(self) -> dict:
         return {"median": self.median, "mad": self.mad}
+
+
+# import distogram
+
+
+# class DistMeter(Meter):
+#     def __init__(self, iterable: Iterable[Numeric] = None, bin_count: int = 256):
+#         self.bin_count = bin_count
+#         self.h = distogram.Distogram(bin_count=bin_count)
+#         super().__init__(iterable)
+
+#     def add(self, datum: Numeric):
+#         distogram.update(self.h, datum)
+
+#     def addN(self, iterable: Iterable[Numeric]):
+#         if isinstance(iterable, (np.ndarray, torch.Tensor)):
+#             iterable = iterable.flatten()
+#             for i in iterable:
+#                 distogram.update(self.h, i.item())
+#         else:
+#             for i in iterable:
+#                 distogram.update(self.h, i)
+
+#     def pdf(self, bin_count=None):
+#         y, x = distogram.histogram(self.h, bin_count=bin_count or self.bin_count)
+#         x = np.array(x)
+#         y = np.array(y)
+#         x = (x[1:] + x[:-1]) / 2
+#         return x, y
+
+#     def cdf(self, bin_count=None):
+#         y = np.linspace(0, 1, bin_count or self.bin_count)
+#         x = np.array([distogram.quantile(self.h, q) for q in y])
+#         return x, y
