@@ -36,9 +36,12 @@ class TrainExperiment(BaseExperiment):
         self.val_dataset = dataset_cls(split="val", **data_cfg)
 
     def build_dataloader(self):
+        assert self.config["dataloader.batch_size"] <= len(
+            self.train_dataset
+        ), "Batch size larger than dataset"
         dl_cfg = self.config["dataloader"]
         self.train_dl = DataLoader(
-            self.train_dataset, shuffle=True, drop_last=True, **dl_cfg
+            self.train_dataset, shuffle=True, drop_last=False, **dl_cfg
         )
         self.val_dl = DataLoader(
             self.val_dataset, shuffle=False, drop_last=False, **dl_cfg

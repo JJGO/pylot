@@ -10,8 +10,6 @@ class HalfTE(TrainExperiment):
         # Creates once at the beginning of training
         self.grad_scaler = torch.cuda.amp.GradScaler()
 
-    #         torch.set_float32_matmul_precision('high')
-
     def run_step(self, batch_idx, batch, backward=True, augmentation=True, epoch=None):
 
         x, y = to_device(
