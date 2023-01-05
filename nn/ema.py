@@ -78,15 +78,20 @@ class ModelEMA(nn.Module):
     def set(self, model):
         self._update(model, update_fn=lambda e, m: m)
 
+    def forward(self, *args, **kwargs):
+        return self.module(*args, **kwargs)
+
 
 # Unlike ModelEMA which is intended for aside tracking, this is a full wrapper that uses EMA
 # in eval mode
 class EMAWrapper(nn.Module):
     @validate_arguments
-    def __init__(self, model, decay: float = 0.9999):
+    def __init__(
+        self, model, decay: Optional[float] = 0.9999, half_life: Optional[float] = None
+    ):
         super().__init__()
         self.model = model
-        self.ema = ModelEMA(self.model, decay=decay)
+        self.ema = ModelEMA(self.model, decay=decay, half_life=half_life)
 
     @torch.no_grad()
     def update(self):
@@ -96,6 +101,7 @@ class EMAWrapper(nn.Module):
 
     def forward(self, *args, **kwargs):
         if self.training:
-            self.model(*args, **kwargs)
+            self.update()
+            return self.model(*args, **kwargs)
         else:
-            self.ema(*args, **kwargs)
+            return self.ema(*args, **kwargs)
