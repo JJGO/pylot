@@ -15,7 +15,7 @@ from .metrics import MetricsDict, MetricsStore
 from .more_functools import partial, memoize, newobj
 from .notify import beep
 from .shapecheck import ShapeChecker
-from .pipes import redirect_std, Tee, quiet_std, Unbuffered, Capturing, temporary_save_path
+from .pipes import redirect_std, Tee, quiet_std, Unbuffered, Capturing, temporary_save_path, quiet_stdout
 from .print import printy, hsizeof
 from .s3 import S3Path, make_path
 from .store import AutoStore
