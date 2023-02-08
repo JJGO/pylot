@@ -6,6 +6,8 @@ from .ui import PlotUI
 
 from .save import publishfig, publishHTML
 
+from .scales import Log2Scale, SymmetricalLog2Scale
+
 # from .plot import plot_df
 # from ..util import AutoMap
 # from .factor import *
