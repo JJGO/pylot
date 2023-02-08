@@ -80,3 +80,26 @@ def publishHTML(path, html, root=None, base_url=None, **kwargs):
         display(HTML(html))
 
     return link
+
+
+def publishImage(path, image, root=None, base_url=None, **kwargs):
+    if root is None:
+        root = os.environ["FIGURE_ROOT"]
+    root = pathlib.Path(root)
+
+    if base_url is None:
+        base_url = os.environ["FIGURE_URL"]
+
+    path = f"{path}-{datetime.now():%F}"
+    link = f"{base_url}/{path}.png"
+    full_path = root / path
+    full_path.parent.mkdir(exist_ok=True, parents=True)
+
+    image.save(str(full_path.with_suffix(".png")))
+
+    if isnotebook():
+        notebook_put_into_clipboard(link)
+        display(HTML(f"<h3> <a href={link}> {link} </a> </h3>"))
+        display(image)
+
+    return link
