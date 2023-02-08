@@ -10,3 +10,4 @@ from .bufferdict import BufferDict
 from .spatial_transformer import SpatialTransformer
 from .vmap import *
 from .frozen_batchnorm import FrozenBatchNorm2d
+from .norm import get_normlayer
