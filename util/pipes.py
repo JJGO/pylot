@@ -1,8 +1,8 @@
 import os
 import pathlib
 import sys
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from io import StringIO
-from contextlib import redirect_stdout, redirect_stderr, contextmanager
 
 # @contextmanager
 # def redirect_std(outfile, mode="a"):
@@ -45,6 +45,13 @@ def redirect_std(outfile, errfile, mode="a", unbuffered=True):
 @contextmanager
 def quiet_std():
     with redirect_std("/dev/null", "/dev/null", unbuffered=False):
+        yield
+
+
+@contextmanager
+def quiet_stdout():
+    dev_null = open("/dev/null", "a")
+    with redirect_stdout(dev_null):
         yield
 
 
