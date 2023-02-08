@@ -4,14 +4,13 @@ from contextlib import contextmanager
 
 
 @contextmanager
-def lock_folder(folder_path):
-    lock_file = os.path.join(folder_path, ".lock")
-    # Create lock file if it doesn't exist
-    if not os.path.exists(lock_file):
-        open(lock_file, "w").close()
+def lock_file(file_path: str):
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError("Cannot lock non-existent file")
 
     # Open the lock file in read/write mode
-    file = open(lock_file, "r+")
+    file = open(file_path, "r+")
 
     # Acquire an exclusive lock on the lock file
     fcntl.lockf(file, fcntl.LOCK_EX)
@@ -21,6 +20,17 @@ def lock_folder(folder_path):
         # Release the lock
         fcntl.lockf(file, fcntl.LOCK_UN)
         file.close()
+
+
+@contextmanager
+def lock_folder(folder_path):
+    lock = os.path.join(folder_path, ".lock")
+    # Create lock file if it doesn't exist
+    if not os.path.exists(lock):
+        open(lock, "w").close()
+
+    with lock_file(lock):
+        yield
 
 
 if __name__ == "__main__":
