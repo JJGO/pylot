@@ -109,7 +109,7 @@ class NpzFormat(FileFormat):
 
 class PtFormat(FileFormat):
 
-    EXTENSIONS = [".pt", ".PT"]
+    EXTENSIONS = [".pt", ".PT", '.pth', '.PTH']
 
     @classmethod
     def save(cls, obj, fp):
