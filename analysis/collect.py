@@ -67,6 +67,8 @@ class ResultsLoader:
         log=False,
         callbacks=False,
     ):
+        # ordered deduplication
+        paths = list(dict.fromkeys(paths))
 
         folders = list(
             itertools.chain.from_iterable(
