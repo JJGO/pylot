@@ -1,11 +1,10 @@
-from typing import Literal, Union, Tuple
-from pydantic import validate_arguments
+from typing import Literal, Tuple, Union
 
-import torch
-from torch import nn
 import einops as E
-
+import torch
+from pydantic import validate_arguments
 from pylot.nn import batch_renorm
+from torch import nn
 
 NormType = Union[
     Literal["batch", "batchre", "layer", "instance", "channel"],
@@ -14,7 +13,7 @@ NormType = Union[
 
 
 class ChannelNorm(nn.LayerNorm):
-    # Normalizes the C dimension in N C * tensors
+    # Normalizes the C dimension in (N, C, *spatial) tensors
     # This is the LayerNorm in ConvNext Networks
 
     def __init__(self, num_features, eps=1e-6, affine=True):
@@ -36,21 +35,22 @@ class ChannelNorm(nn.LayerNorm):
 
 
 def get_normlayer(
-    features: int,
-    kind: NormType,
-    dims: Literal[1, 2, 3] = 2,
-    **norm_kws,
+    features: int, kind: NormType, dims: Literal[1, 2, 3], **norm_kws,
 ):
     if kind == "batch":
         return getattr(nn, f"BatchNorm{dims}d")(features, **norm_kws)
     if kind == "batchre":
         return getattr(batch_renorm, f"BatchRenorm{dims}d")(features, **norm_kws)
     if kind == "instance":
+        # Unlike all others InstanceNorm defaults to affine=False
+        # For consistency, we set it to True by default
+        norm_kws = {"affine": True, **norm_kws}
         return getattr(nn, f"InstanceNorm{dims}d")(features, **norm_kws)
     if kind == "layer":
         return nn.GroupNorm(1, features, **norm_kws)
     if kind == "channel":
         return ChannelNorm(features, **norm_kws)
     if isinstance(kind, tuple):
-        _, groups = kind
+        k, groups = kind
+        assert k == "group"
         return nn.GroupNorm(groups, features, **norm_kws)
