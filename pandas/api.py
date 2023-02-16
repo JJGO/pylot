@@ -1,17 +1,14 @@
 import inspect
 import itertools
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
+from IPython.display import display as notebook_display
+
 import pandas as pd
 from pandas import DataFrame, Series
 
-from IPython.display import display as notebook_display
-
-from .register import (
-    register_dataframe_method,
-    register_series_method,
-)
+from .register import register_dataframe_method, register_series_method
 
 _NA = "N/A"
 
@@ -44,10 +41,15 @@ def is_constant(ser: Series) -> bool:
 
 
 @register_dataframe_method
-def drop_constant(df: DataFrame, inplace=False) -> Optional[DataFrame]:
+def drop_constant(
+    df: DataFrame, inplace=False, ignore: Optional[Sequence[str]] = None
+) -> Optional[DataFrame]:
+
+    _ignore = ignore or []
     # Drops columns that are constant
     return df.drop(
-        columns=[c for c in df.columns if df[c].is_constant()], inplace=inplace
+        columns=[c for c in df.columns if df[c].is_constant() and c not in _ignore],
+        inplace=inplace,
     )
 
 

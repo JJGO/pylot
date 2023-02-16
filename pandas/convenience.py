@@ -1,6 +1,8 @@
+import json
 from typing import Any, Callable, Sequence, Union
 
 import pandas as pd
+from pandas.api.types import is_categorical_dtype, union_categoricals
 
 
 def groupby_mode_nonum(
@@ -28,6 +30,7 @@ def groupby_mode_nonum(
     agg_by_type = {
         "number": number_agg,
         "object": str_agg,
+        "category": str_agg,
     }
 
     cols_by_type = {
@@ -58,3 +61,31 @@ def groupby_and_take_best(
         return df_group.sort_values(metric, ascending=False).head(n)
 
     return df.groupby(groupby, as_index=False).apply(keep_best).reset_index(drop=True)
+
+
+def to_categories(df: pd.DataFrame, threshold=0.1, inplace=False) -> pd.DataFrame:
+    if not inplace:
+        df = df.copy()
+    for col in df.select_dtypes("object").columns:
+        if df[col].map(pd.api.types.is_hashable).astype(bool).all():
+            if df[col].nunique() / len(df) <= threshold:
+                df[col] = df[col].astype("category")
+    return df
+
+
+def ensure_hashable(df: pd.DataFrame, inplace: bool = False):
+    if not inplace:
+        df = df.copy()
+    for col in df.columns:
+        if not df[col].map(pd.api.types.is_hashable).astype(bool).all():
+            df[col] = df[col].map(json.dumps)
+    return df
+
+
+def broadcast_categories(dfs):
+    for col in set(sum([df.columns.tolist() for df in dfs], start=[])):
+        if all(is_categorical_dtype(df[col]) for df in dfs):
+            all_cats = union_categoricals([df[col] for df in dfs]).categories
+            for df in dfs:
+                df[col] = pd.Categorical(df[col], categories=all_cats)
+    return dfs
