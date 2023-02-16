@@ -16,3 +16,4 @@ def validate_arguments_init(class_):
 
 def assert_json(data: JSONType):
     assert data == json.loads(json.dumps(data))
+    return data
