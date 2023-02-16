@@ -5,19 +5,20 @@
 # Some background on LMDB: https://blogs.kolabnow.com/2018/06/07/a-short-guide-to-lmdb
 
 
-import io, math
+import io
+import math
 from concurrent.futures import ProcessPoolExecutor
-from typing import Optional, Callable, Any, Literal
+from typing import Any, Callable, Literal, Optional
 
+import lmdb
 import numpy as np
 from PIL import Image
-import lmdb
-from torch.utils.data import Dataset
 from torchvision.datasets import VisionDataset
 from tqdm.auto import tqdm
 
-from pylot.util.ioutil import autoencode, autodecode
-from pylot.datasets.cache import IndexedImageFolder
+from pylot.datasets import IndexedImageFolder
+from pylot.util.ioutil import autodecode, autoencode
+from torch.utils.data import Dataset
 
 
 class ImageFolderLMDB(VisionDataset):
@@ -110,7 +111,7 @@ class ImageFolderLMDB(VisionDataset):
         # We use lmdbm for writing only as it makes autogrowing the DB easier
         from lmdbm import Lmdb
 
-        with Lmdb.open(outfile, "c", map_size=2**32) as db:
+        with Lmdb.open(outfile, "c", map_size=2 ** 32) as db:
             db["_index.msgpack"] = autoencode(index, "_index.msgpack")
 
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -122,10 +123,7 @@ class ImageFolderLMDB(VisionDataset):
 
     @classmethod
     def fromdataset(
-        cls,
-        dataset: VisionDataset,
-        outfile: str,
-        max_workers: int = 0,
+        cls, dataset: VisionDataset, outfile: str, max_workers: int = 0,
     ) -> "ImageFolderLMDB":
 
         classes = (
@@ -146,7 +144,7 @@ class ImageFolderLMDB(VisionDataset):
         # We use lmdbm for writing only as it makes autogrowing the DB easier
         from lmdbm import Lmdb
 
-        with Lmdb.open(outfile, "c", map_size=2**32) as db:
+        with Lmdb.open(outfile, "c", map_size=2 ** 32) as db:
 
             paths = []
 
@@ -179,9 +177,10 @@ class ImageFolderLMDB(VisionDataset):
 
 
 if __name__ == "__main__":
-    import typer
-    from pathlib import Path
     import sys
+    from pathlib import Path
+
+    import typer
 
     def convert(
         source_folder: Path,

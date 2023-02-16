@@ -4,7 +4,7 @@ import os
 from torchvision import transforms, datasets
 import PIL
 
-from ..cache import IndexedImageDataset
+from ..indexed import IndexedImageDataset
 
 __all__ = [
     "CIFAR10",

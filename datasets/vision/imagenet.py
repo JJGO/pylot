@@ -3,7 +3,7 @@ from typing import Literal
 
 import torchvision.transforms as TF
 
-from ..cache import IndexedImageFolder
+from ..indexed import IndexedImageFolder
 from ..path import DatapathMixin
 
 from ...util.validation import validate_arguments_init

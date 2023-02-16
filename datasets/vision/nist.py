@@ -11,7 +11,7 @@ from pydantic import validate_arguments
 from sklearn.model_selection import train_test_split
 import numpy as np
 
-from ..cache import IndexedImageDataset
+from ..indexed import IndexedImageDataset
 from ..path import DatapathMixin
 from .emnist import EMNIST
 from .usps28 import USPS28
