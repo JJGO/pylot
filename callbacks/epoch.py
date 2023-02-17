@@ -1,15 +1,15 @@
-import time
 import sys
-from datetime import datetime
-from typing import Union, Literal
-from fnmatch import fnmatch
+import time
 from collections import defaultdict
+from datetime import datetime
+from fnmatch import fnmatch
+from typing import Literal, Union
 
 import numpy as np
-import pandas as pd
-
 from pydantic import validate_arguments
 from tabulate import tabulate
+
+import pandas as pd
 
 
 def PrintLogged(experiment):
@@ -80,7 +80,10 @@ class ETA:
         self.timestamps[epoch] = time.time()
         if len(self.timestamps) % self.print_freq == 0:
             eta = self._least_squares_fit()
-            eta = datetime.fromtimestamp(eta)
+            try:
+                eta = datetime.fromtimestamp(eta)
+            except ValueError:
+                return
             remain = eta - datetime.now()
             remain = self.strfdelta(remain, "{hours:02d}:{minutes:02d}:{seconds:02d}")
             N = self.n_steps
@@ -188,7 +191,6 @@ def JobProgress(experiment):
 
 
 def Timestamp(experiment):
-
     def TimestampCallback(epoch):
         experiment.metricsd["timestamp"].log({"epoch": epoch, "timestamp": time.time()})
 
