@@ -10,4 +10,4 @@ from .subset import subset_dataset
 from .selfsuper import SelfsuperDataset, self_supervised
 from .vision import *
 from .image_folder_tar import ImageFolderTar
-from .cuda import CUDACached
+from .cuda import CUDACachedDataset

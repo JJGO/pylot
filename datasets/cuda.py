@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 from ..util import to_device
 
 
-class CUDACached(Dataset):
+class CUDACachedDataset(Dataset):
     def __init__(self, dataset: Dataset):
         assert torch.cuda.is_available()
         self._dataset = dataset
