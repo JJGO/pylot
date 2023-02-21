@@ -1,5 +1,10 @@
+import itertools
 import json
+import operator
+from functools import reduce
 from typing import Any, Callable, Sequence, Union
+
+import numpy as np
 
 import pandas as pd
 from pandas.api.types import is_categorical_dtype, union_categoricals
@@ -89,3 +94,28 @@ def broadcast_categories(dfs):
             for df in dfs:
                 df[col] = pd.Categorical(df[col], categories=all_cats)
     return dfs
+
+
+def set_value_to_column(df, col, val):
+    if isinstance(val, (tuple, list, dict)):
+        df[col] = np.array(itertools.repeat(val, len(df)))
+    else:
+        df[col] = val
+    return df
+
+
+def concat_with_attrs(dfs, **concat_kws):
+    all_attrs = reduce(operator.or_, [set(df.attrs) for df in dfs])
+    sentinel = object()
+    unique_attrs = {}
+    for attr in all_attrs:
+        vals = [df.attrs.get(attr, sentinel) for df in dfs]
+        if all(v == vals[0] for v in vals):
+            unique_attrs[attr] = list(vals)[0]
+        else:
+            for df in dfs:
+                if attr in df.attrs:
+                    df[attr] = df.attrs[attr]
+    concat_df = pd.concat(dfs, **concat_kws)
+    concat_df.attrs.update(unique_attrs)
+    return concat_df
