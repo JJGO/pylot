@@ -1,24 +1,25 @@
+import collections
 import getpass
 import itertools
 import json
 import pathlib
-import collections
-from typing import Optional
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from fnmatch import fnmatch
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from typing import Optional
 
-from tqdm.auto import tqdm
-import pandas as pd
-import numpy as np
 import more_itertools
+import numpy as np
+from tqdm.auto import tqdm
 
-from ..util.config import HDict, valmap, keymap
-from ..util import FileCache
-from ..pandas.api import augment_from_attrs
+import pandas as pd
 
 # unused import because we want the patching side-effects
 # on pd.DataFrames
 from ..pandas import api
+from ..pandas.api import augment_from_attrs
+from ..pandas.convenience import ensure_hashable, to_categories
+from ..util import FileCache
+from ..util.config import HDict, keymap, valmap
 
 
 def list2tuple(val):
@@ -66,9 +67,11 @@ class ResultsLoader:
         metadata=False,
         log=False,
         callbacks=False,
+        categories=False,
     ):
         # ordered deduplication
         paths = list(dict.fromkeys(paths))
+        assert all( isinstance(p, (str, pathlib.Path)) for p in paths)
 
         folders = list(
             itertools.chain.from_iterable(
@@ -104,12 +107,13 @@ class ResultsLoader:
 
         df = pd.DataFrame.from_records(rows)
 
-        for col in df.columns:
-            if not df[col].map(pd.api.types.is_hashable).all():
-                df[col] = df[col].map(json.dumps)
+        ensure_hashable(df, inplace=True)
 
         if shorthand:
             df = shorthand_columns(df)
+
+        if categories:
+            df = to_categories(df, inplace=True, threshold=0.5)
         return df
 
     def load_metrics(
@@ -121,7 +125,9 @@ class ResultsLoader:
         copy_cols=None,
         path_key=None,
         expand_attrs=False,
+        categories=False,
     ):
+        assert isinstance(config_df, pd.DataFrame)
 
         log_dfs = []
         if path_key is None:
@@ -175,16 +181,18 @@ class ResultsLoader:
                         renames[c] = c.replace(".", "__")
             full_df.rename(columns=renames, inplace=True)
 
-        # Ensure columns are hashable
-        for col in full_df.columns:
-            if not full_df[col].map(pd.api.types.is_hashable).all():
-                full_df[col] = full_df[col].map(json.dumps)
+        # ensure_hashable(full_df, inplace=True)
+
+        if categories:
+            to_categories(full_df, inplace=True, threshold=0.5)
 
         return full_df
 
     def load_aggregate(
         self, config_df, metric_df, agg=None, metrics_groupby=("phase",)
     ):
+        assert isinstance(config_df, pd.DataFrame)
+        assert isinstance(metric_df, pd.DataFrame)
 
         config_cols = list(config_df.columns)
         metric_cols = list(set(metric_df.columns) - set(config_df.columns))
@@ -216,19 +224,14 @@ class ResultsLoader:
 
     def load_all(self, *paths, shorthand=True, **selector):
 
-        dfc = (
-            self.load_configs(
-                *paths,
-                shorthand=shorthand,
-            )
-            .select(**selector)
-            .copy()
-        )
+        dfc = self.load_configs(*paths, shorthand=shorthand,).select(**selector).copy()
         df = self.load_metrics(dfc)
         dfa = self.load_aggregate(dfc, df)
         return dfc, df, dfa
 
     def load_from_callable(self, config_df, load_fn, copy_cols=None, prefix="data"):
+
+        assert isinstance(config_df, pd.DataFrame)
 
         if copy_cols is None:
             copy_cols = config_df.columns.to_list()
@@ -236,6 +239,8 @@ class ResultsLoader:
         def do_row(row):
             row = row.to_dict()
             data_df = load_fn(row["path"])
+            if data_df is None:
+                return pd.DataFrame()
             if prefix:
                 data_df.rename(
                     columns={
