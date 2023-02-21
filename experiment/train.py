@@ -7,12 +7,12 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from .base import BaseExperiment
-from .util import eval_config, absolute_import
-from ..util.torchutils import to_device
-from ..util.meter import MeterDict
-from ..util.ioutil import autosave
 from ..nn.util import num_params, split_param_groups_by_weight_decay
+from ..util.ioutil import autosave
+from ..util.meter import MeterDict
+from ..util.torchutils import to_device
+from .base import BaseExperiment
+from .util import absolute_import, eval_config
 
 
 class TrainExperiment(BaseExperiment):
@@ -103,6 +103,8 @@ class TrainExperiment(BaseExperiment):
                     x.load_state_dict(state_dict)
                 else:
                     raise TypeError(f"Unsupported type {type(x)}")
+
+        self._checkpoint_epoch = state["_epoch"]
 
     def checkpoint(self, tag=None):
         self.properties["epoch"] = self._epoch
