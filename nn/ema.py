@@ -9,9 +9,10 @@ import copy
 import math
 from typing import Optional
 
+from pydantic import validate_arguments
+
 import torch
 from torch import nn
-from pydantic import validate_arguments
 
 
 class ModelEMA(nn.Module):
@@ -87,21 +88,33 @@ class ModelEMA(nn.Module):
 class EMAWrapper(nn.Module):
     @validate_arguments
     def __init__(
-        self, model, decay: Optional[float] = 0.9999, half_life: Optional[float] = None
+        self,
+        model,
+        decay: Optional[float] = 0.9999,
+        half_life: Optional[float] = None,
+        delay: int = 0,  # number of steps to ignore
+        update_on_forward: bool = False,
     ):
         super().__init__()
         self.model = model
+        self.update_on_forward = update_on_forward
         self.ema = ModelEMA(self.model, decay=decay, half_life=half_life)
+        self.delay = delay
+        self.register_buffer("_step", torch.zeros(tuple()), persistent=True)
 
     @torch.no_grad()
     def update(self):
         if not self.training:
             raise RuntimeError(f"update should only be called in training mode")
+        if self._step < self.delay:
+            return
         self.ema.update(self.model)
+        self._step += 1
 
     def forward(self, *args, **kwargs):
         if self.training:
-            self.update()
+            if self.update_on_forward:
+                self.update()
             return self.model(*args, **kwargs)
         else:
             return self.ema(*args, **kwargs)
