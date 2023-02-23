@@ -83,6 +83,7 @@ def to_categories(df: DataFrame, threshold: float = 0.1, inplace=False) -> DataF
 
 @register_dataframe_method
 def select(df: DataFrame, **kwargs):
+    attrs = df.attrs
     for k, vs in kwargs.items():
         if vs is None:
             df = df[df[k].isna()]
@@ -90,6 +91,7 @@ def select(df: DataFrame, **kwargs):
             df = df[df[k].isin(vs)]
         else:
             df = df[df[k] == vs]
+    df.attrs = attrs
     return df
 
 
