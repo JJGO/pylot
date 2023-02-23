@@ -17,7 +17,7 @@ import pandas as pd
 # on pd.DataFrames
 from ..pandas import api
 from ..pandas.api import augment_from_attrs
-from ..pandas.convenience import ensure_hashable, to_categories
+from ..pandas.convenience import ensure_hashable, to_categories, concat_with_attrs
 from ..util import FileCache
 from ..util.config import HDict, keymap, valmap
 
@@ -168,7 +168,7 @@ class ResultsLoader:
             log_df["path"] = path
             log_dfs.append(log_df)
 
-        full_df = pd.concat(log_dfs, ignore_index=True)
+        full_df = concat_with_attrs(log_dfs, ignore_index=True)
 
         if shorthand:
             renames = {}
@@ -265,4 +265,4 @@ class ResultsLoader:
                 )
             )
 
-        return pd.concat(data_dfs, ignore_index=True)
+        return concat_with_attrs(data_dfs, ignore_index=True)
