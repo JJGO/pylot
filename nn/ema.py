@@ -106,7 +106,7 @@ class EMAWrapper(nn.Module):
     def update(self):
         if not self.training:
             raise RuntimeError(f"update should only be called in training mode")
-        if self._step < self.delay:
+        if self._step.item() < self.delay:
             return
         self.ema.update(self.model)
         self._step += 1
