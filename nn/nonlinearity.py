@@ -26,6 +26,9 @@ def register_nonlinearity(nonlinearity):
 def get_nonlinearity(nonlinearity):
     if nonlinearity is None:
         return None
+    if nonlinearity == "Softmax":
+        # For Softmax, we need to specify the channel dimension
+        return nn.Softmax(dim=1)
     if hasattr(nn, nonlinearity):
         return getattr(nn, nonlinearity)
 
