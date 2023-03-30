@@ -1,12 +1,11 @@
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Literal, Optional
 
 import torch
-from torch import Tensor
-from torch import nn
 import torch.nn.functional as F
+from torch import Tensor, nn
 
-from ..nn import get_nonlinearity, ConvBlock
+from ..nn import ConvBlock, get_nonlinearity
 
 
 @dataclass(eq=False, repr=False)
@@ -19,7 +18,7 @@ class UNet(nn.Module):
     out_activation: Optional[str] = None
     convs_per_block: int = 1
     skip_connections: bool = True
-    dims: int = 2
+    dims: Literal[1, 2, 3] = 2
     interpolation_mode: str = "linear"
     conv_kws: Optional[Dict[str, Any]] = None
 
