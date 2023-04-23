@@ -1,7 +1,6 @@
 import numpy as np
-from PIL import Image
-from PIL import ImageChops
-from PIL import ImageOps
+from PIL import Image, ImageChops, ImageOps
+
 import torch
 
 
@@ -56,3 +55,17 @@ def pad(old_im, new_size):
     padding = (dw // 2, dh // 2, dw - dw // 2, dh - dh // 2)
     new_im = ImageOps.expand(old_im, padding)
     return new_im
+
+
+def hist_equalize(img: np.ndarray):
+    # https://opencv24-python-tutorials.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_histograms/py_histogram_equalization/py_histogram_equalization.html
+    hist, bins = np.histogram(img.flatten(), 256, [0, 256])
+
+    cdf = hist.cumsum()
+    cdf_normalized = cdf * hist.max() / cdf.max()
+
+    cdf_m = np.ma.masked_equal(cdf, 0)
+    cdf_m = (cdf_m - cdf_m.min()) * 255 / (cdf_m.max() - cdf_m.min())
+    cdf = np.ma.filled(cdf_m, 0).astype("uint8")
+
+    return cdf[img]
