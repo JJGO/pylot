@@ -1,11 +1,12 @@
-from typing import Optional, Union, Literal, Tuple
 from enum import Enum
+from typing import Literal, Optional, Tuple, Union
+
+import einops as E
+from pydantic import validate_arguments
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-import einops as E
-from pydantic import validate_arguments
 
 InputMode = Literal["binary", "multiclass", "onehot", "auto"]
 Reduction = Union[None, Literal["mean", "sum"]]
@@ -21,10 +22,7 @@ def hard_max(x: Tensor):
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
-def _infer_mode(
-    y_pred: Tensor,
-    y_true: Tensor,
-) -> InputMode:
+def _infer_mode(y_pred: Tensor, y_true: Tensor,) -> InputMode:
     batch_size, num_classes = y_pred.shape[:2]
 
     if y_pred.shape == y_true.shape:
@@ -63,9 +61,11 @@ def _inputs_as_onehot(
         if mode == "binary":
             y_pred = torch.round(y_pred).clamp_min(0.0).clamp_max(1.0)
             y_true = torch.round(y_true).clamp_min(0.0).clamp_max(1.0)
-        else:
+        elif mode == "onehot":
             y_pred = hard_max(y_pred)
             y_true = hard_max(y_true)
+        elif mode == "multiclass":
+            y_pred = hard_max(y_pred)
 
     if mode == "binary":
         y_true = y_true.reshape(batch_size, 1, -1)
@@ -126,8 +126,6 @@ def _inputs_as_longlabels(
     return y_pred, y_true.long()
 
 
-
-
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def _metric_reduction(
     loss: Tensor,
@@ -152,9 +150,9 @@ def _metric_reduction(
         weights = [1.0 if i != ignore_index else 0.0 for i in range(channels)]
 
     if weights:
-        assert len(weights) == len(
-            loss
-        ), f"Weights must match number of channels {len(loss)} != {len(loss)}"
+        assert (
+            len(weights) == channels
+        ), f"Weights must match number of channels {len(weights)} != {channels}"
 
         if isinstance(weights, list):
             weights = torch.Tensor(weights)
