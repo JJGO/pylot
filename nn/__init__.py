@@ -8,7 +8,9 @@ from .init import *
 from .interpolation import *
 from .nonlinearity import *
 from .norm import get_normlayer
+from .residual import ConvResidual
 from .separable import *
 from .spatial_transformer import SpatialTransformer
 from .util import *
 from .vmap import *
+from .squeeze_excite import SqueezeExcite2d
