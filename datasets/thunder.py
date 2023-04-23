@@ -22,7 +22,8 @@ class ThunderDataset(Dataset):
         else:
             self._db = ThunderReader(path)
 
-        self.samples: List[str] = self._db["_samples"]
+        if "samples" in self._db.keys():
+            self.samples: List[str] = self._db["_samples"]
         self.attrs = self._db.get("_attrs", {})
 
     def _load(self, key):
