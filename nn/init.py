@@ -21,6 +21,8 @@ def initialize_weight(weight, distribution, nonlinearity="LeakyReLU"):
     if nonlinearity is None:
         nonlinearity = "linear"
 
+    if nonlinearity in ("silu", "gelu"):
+        nonlinearity = "leaky_relu"
     gain = 1 if nonlinearity is None else init.calculate_gain(nonlinearity)
 
     if distribution == "zeros":
@@ -65,3 +67,14 @@ def initialize_layer(
         initialize_bias(
             layer.bias, init_bias, nonlinearity=nonlinearity, weight=layer.weight
         )
+
+
+def reset_conv2d_parameters(self):
+    for name, module in self.named_modules():
+        if isinstance(module, nn.Conv2d):
+            initialize_layer(
+                module,
+                distribution=self.init_distribution,
+                init_bias=self.init_bias,
+                nonlinearity=self.nonlinearity,
+            )
