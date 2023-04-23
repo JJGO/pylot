@@ -1,7 +1,9 @@
 import numpy as np
+
 from torch import nn
 
-from .abstract_flops import dense_flops, convNd_flops
+from ...nn import HookedModule
+from .abstract_flops import convNd_flops, dense_flops
 
 
 def _convNd_flops(module, activation):
@@ -27,31 +29,24 @@ def _linear_flops(module, activation):
     return dense_flops(module.in_features, module.out_features)
 
 
-def flops(model, input):
-    """Compute Multiply-add FLOPs estimate from model
+def _relu_flops(module, input):
+    return input.numel()
 
-    Arguments:
-        model {torch.nn.Module} -- Module to compute flops for
-        input {torch.Tensor} -- Input tensor needed for activations
 
-    Returns:
-        tuple:
-        - int - Number of total FLOPs
-        - int - Number of FLOPs related to nonzero parameters
-    """
-    FLOP_fn = {
-        nn.Conv1d: _convNd_flops,
+def measure_flops(model, *inputs, **kw_inputs):
+
+    _FLOP_fn = {
         nn.Conv2d: _convNd_flops,
-        nn.Conv3d: _convNd_flops,
         nn.Linear: _linear_flops,
+        nn.LeakyReLU: _relu_flops,
     }
+    rows = []
 
-    total_flops = 0
-    activations = get_activations(model, input)
+    def _store_flops(module, inputs, outputs):
+        flops = _FLOP_fn[type(module)](module, inputs[0])
+        rows.append(flops)
 
-    # The ones we need for backprop
-    for m, (act, _) in activations.items():
-        if m.__class__ in FLOP_fn:
-            total_flops += FLOP_fn[m.__class__](m, act)
+    with HookedModule(model, _store_flops, module_types=tuple(_FLOP_fn)):
+        model(*inputs, **kw_inputs)
 
-    return total_flops
+    return sum(rows)
