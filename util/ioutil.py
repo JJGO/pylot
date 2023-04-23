@@ -1,29 +1,29 @@
-from abc import ABC, abstractmethod
+import gzip
 import io
 import json
-import gzip
 import pathlib
 import pickle
 import shutil
-from typing import Union, Any, Optional, Literal
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
+from typing import Any, Literal, Optional, Union
 
-import numpy as np
-import torch
-import pandas as pd
-import yaml
-import PIL.Image
-import PIL.JpegImagePlugin
 import lz4.frame
-import zstd
-import xxhash
-
-import pyarrow as pa
-import pyarrow.parquet as pq
-import pyarrow.feather as feather
-
 import msgpack
 import msgpack_numpy as m
+import numpy as np
+import PIL.Image
+import PIL.JpegImagePlugin
+import pyarrow as pa
+import pyarrow.feather as feather
+import pyarrow.parquet as pq
+import scipy.io
+import xxhash
+import yaml
+import zstd
+
+import pandas as pd
+import torch
 
 m.patch()
 
@@ -109,7 +109,7 @@ class NpzFormat(FileFormat):
 
 class PtFormat(FileFormat):
 
-    EXTENSIONS = [".pt", ".PT", '.pth', '.PTH']
+    EXTENSIONS = [".pt", ".PT", ".pth", ".PTH"]
 
     @classmethod
     def save(cls, obj, fp):
@@ -418,6 +418,21 @@ class PlaintextFormat(FileFormat):
             return f.read().strip().split("\n")
 
 
+class MatFormat(FileFormat):
+
+    EXTENSIONS = [".mat", ".MAT"]
+
+    @classmethod
+    def save(cls, obj, fp):
+        fp = cls.check_fp(fp)
+        scipy.io.savemat(fp, obj)
+
+    @classmethod
+    def load(cls, fp) -> object:
+        fp = cls.check_fp(fp)
+        return scipy.io.loadmat(fp)
+
+
 _DEFAULTFORMAT = {}
 for format_cls in (
     NpyFormat,
@@ -437,6 +452,7 @@ for format_cls in (
     ZstdFormat,
     MsgpackFormat,
     PlaintextFormat,
+    MatFormat,
 ):
     for extension in format_cls.EXTENSIONS:
         extension = extension.strip(".")
