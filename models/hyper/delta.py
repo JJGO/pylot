@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Union
 
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 
+from ...nn.init import initialize_bias, initialize_weight
 from .base import HyperNet
-from ...nn.init import initialize_weight, initialize_bias
 
 
 @dataclass(eq=False, repr=False)
@@ -54,7 +54,5 @@ class DeltaHyperNet(HyperNet):
                     )
                 if "bias" in name:
                     initialize_bias(
-                        param,
-                        self.main_init_bias,
-                        nonlinearity=self.main_nonlinearity,
+                        param, self.main_init_bias, nonlinearity=self.main_nonlinearity,
                     )
