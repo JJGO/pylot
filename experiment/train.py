@@ -105,6 +105,7 @@ class TrainExperiment(BaseExperiment):
                     raise TypeError(f"Unsupported type {type(x)}")
 
         self._checkpoint_epoch = state["_epoch"]
+        self._epoch = state["_epoch"]
 
     def checkpoint(self, tag=None):
         self.properties["epoch"] = self._epoch
