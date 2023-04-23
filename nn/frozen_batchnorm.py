@@ -54,6 +54,14 @@ class FrozenBatchNorm2d(nn.Module):
                 cls.patch_module(child)
 
 
+def remove_batchnorm(module: nn.Module) -> None:
+    for name, child in module.named_children():
+        if isinstance(child, nn.BatchNorm2d):
+            setattr(module, name, nn.Identity())
+        else:
+            remove_batchnorm(child)
+
+
 if __name__ == "__main__":
 
     import copy
