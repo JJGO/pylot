@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="158.46996mm"
+   height="35.339542mm"
+   viewBox="0 0 158.46996 35.339542"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486, 2022-12-01)"
+   sodipodi:docname="pylot.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.75633418"
+     inkscape:cx="385.41164"
+     inkscape:cy="489.86283"
+     inkscape:window-width="1390"
+     inkscape:window-height="1005"
+     inkscape:window-x="54"
+     inkscape:window-y="23"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="g332" />
+  <defs
+     id="defs2">
+    <rect
+       x="185.10336"
+       y="579.10907"
+       width="462.75842"
+       height="177.17036"
+       id="rect167" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-39.530045,-50.367167)">
+    <g
+       id="g332">
+      <rect
+         id="rect111"
+         width="158.46997"
+         height="35.339546"
+         x="39.530045"
+         y="50.367165"
+         style="fill:#1a1a1a;stroke-width:0.209708" />
+      <text
+         xml:space="preserve"
+         transform="matrix(0.54751457,0,0,0.54751457,-44.071811,-260.46992)"
+         id="text165"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:40px;line-height:1.25;font-family:'Fira Code';-inkscape-font-specification:'Fira Code, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;white-space:pre;shape-inside:url(#rect167);display:inline;fill:#000000;fill-opacity:1;stroke:none"><tspan
+           x="185.10352"
+           y="614.10938"
+           id="tspan222"><tspan
+             style="fill:#ffffff"
+             id="tspan220">P Y L O T</tspan></tspan></text>
+    </g>
+  </g>
+</svg>
