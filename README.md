@@ -1,4 +1,4 @@
-![PYLOT](https://raw.githubusercontent.com/JJGO/pylot/assets/pylot-logo.svg)
+![PYLOT](https://raw.githubusercontent.com/JJGO/pylot/assets/pylot-logo.jpg)
 =====
 
 This library is designed as a supporting library to my other research efforts in Deep Learning using PyTorch. It has many features and implementations but some of the most relevant ones:
