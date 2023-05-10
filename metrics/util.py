@@ -53,9 +53,11 @@ def _inputs_as_onehot(
         # extreme values 0 and 1
 
         if mode == "binary":
-            y_pred = F.logsigmoid(y_pred.float()).exp()
+            # y_pred = F.logsigmoid(y_pred.float()).exp()
+            y_pred = torch.sigmoid(y_pred.float())
         elif mode in ("multiclass", "onehot"):
-            y_pred = F.log_softmax(y_pred.float(), dim=1).exp()
+            # y_pred = F.log_softmax(y_pred.float(), dim=1).exp()
+            y_pred = torch.softmax(y_pred.float(), dim=1)
 
     if discretize:
         if mode == "binary":
