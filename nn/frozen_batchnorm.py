@@ -3,6 +3,12 @@ from torch import nn
 
 
 class FrozenBatchNorm2d(nn.Module):
+
+    """An actual sane implementation of frozen batch norm that
+    entirely removes the possibility of either the parameters or
+    the running stats changing
+    """
+
     def __init__(
         self,
         weight: torch.Tensor,
@@ -20,6 +26,10 @@ class FrozenBatchNorm2d(nn.Module):
         self.register_buffer("running_var", running_var)
         self.eps = eps
 
+    @property
+    def num_features(self) -> int:
+        return self.weight.shape[0]
+
     def forward(self, input: torch.Tensor):
         return torch.batch_norm(
             input=input,
@@ -34,7 +44,7 @@ class FrozenBatchNorm2d(nn.Module):
         )
 
     @classmethod
-    def fromBatchNorm2d(cls, module: nn.BatchNorm2d):
+    def fromBatchNorm2d(cls, module: nn.BatchNorm2d) -> "FrozenBatchNorm2d":
         assert isinstance(module, nn.BatchNorm2d)
         return cls(
             module.weight,
@@ -52,6 +62,26 @@ class FrozenBatchNorm2d(nn.Module):
                 setattr(module, name, patched)
             else:
                 cls.patch_module(child)
+
+    @classmethod
+    def toBatchNorm2d(cls, module: "FrozenBatchNorm2d") -> nn.BatchNorm2d:
+        assert isinstance(module, FrozenBatchNorm2d)
+        module = nn.BatchNorm2d(num_features)
+
+    @classmethod
+    def unpatch_module(cls, module: nn.Module):
+        for name, child in module.named_children():
+            if isinstance(child, FrozenBatchNorm2d):
+                bn = nn.BatchNorm2d(child.num_features)
+                bn.weight.data = child.weight.data
+                bn.bias.data = child.bias.data
+                bn.running_mean.data = child.running_mean.data
+                bn.running_var.data = child.running_var.data
+            else:
+                cls.unpatch_module(child)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(num_features={self.num_features})"
 
 
 def remove_batchnorm(module: nn.Module) -> None:
