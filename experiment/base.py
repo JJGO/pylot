@@ -50,6 +50,7 @@ class BaseExperiment:
         check_environment()
 
         self.properties["experiment.class"] = self.__class__.__name__
+        self.properties["experiment.module"] = self.__class__.__module__
 
         if "log.properties" in self.config:
             self.properties.update(self.config["log.properties"])

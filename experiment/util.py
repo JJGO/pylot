@@ -5,7 +5,7 @@ import random
 import time
 import importlib
 import pathlib
-from typing import Tuple
+from typing import Tuple, Dict
 
 from ..util.config import HDict, Config
 from ..util.ioutil import autoload
@@ -70,6 +70,14 @@ def eval_config(config):
             config.load_state_dict(state_dict)
 
     return config
+
+
+def autoload_experiment(path: pathlib.Path):
+    cfg: Dict = autoload(path / "properties.json")
+    cls_name = cfg["experiment"]["class"]
+    mod_name = cfg["experiment"]["module"]
+    cls_ = absolute_import(f"{mod_name}.{cls_name}")
+    return cls_(path)
 
 
 def config_from_path(path):
