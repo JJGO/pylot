@@ -1,11 +1,10 @@
 import collections
 import pathlib
 from contextlib import contextmanager
-from typing import Iterable, Dict
+from typing import Dict, Iterable
 
 import lmdb
 from lmdbm import Lmdb
-
 from pydantic import validate_arguments
 
 from pylot.util import autopackb, autounpackb
@@ -104,7 +103,7 @@ class ThunderReader(collections.abc.Mapping):
 
     def keys(self):
         self._require_env()
-        for key, value in self._txn.cursor().iternext(keys=True, values=True):
+        for key in self._txn.cursor().iternext(keys=True, values=False):
             yield key.decode()
 
     def __len__(self):
