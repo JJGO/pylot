@@ -73,6 +73,7 @@ def eval_config(config):
 
 
 def autoload_experiment(path: pathlib.Path):
+    path = pathlib.Path(path)
     cfg: Dict = autoload(path / "properties.json")
     cls_name = cfg["experiment"]["class"]
     mod_name = cfg["experiment"]["module"]
