@@ -18,7 +18,7 @@ from .setup import (
     ModuleTable,
     CheckHalfCosineSchedule,
 )
-from .debug import nvidia_smi, GPUStats
+from .debug import nvidia_smi # GPUStats
 from .img import ImgIO, ImgActivations
 from .profile import Throughput
 from .debug import inspect_job, InspectStack, TraceLine, TorchTraceback
