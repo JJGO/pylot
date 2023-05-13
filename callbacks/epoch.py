@@ -9,6 +9,7 @@ import numpy as np
 from pydantic import validate_arguments
 from tabulate import tabulate
 
+import torch
 import pandas as pd
 
 
@@ -118,14 +119,14 @@ class ModelCheckpoint:
         monitor: str = "loss",
         mode: Literal["auto", "min", "max"] = "auto",
         phase: str = "val",
-        save_top_k: int = 1,
+        # save_top_k: int = 1,
         save_freq: int = 1,
     ):
 
         self.phase = phase
         self.experiment = experiment
         self.monitor = monitor
-        self.save_top_k = save_top_k
+        # self.save_top_k = save_top_k
         self.save_freq = save_freq
 
         min_patterns = ["*loss*", "*err*"]
@@ -143,9 +144,12 @@ class ModelCheckpoint:
         else:
             self.mode = mode
 
+        self._best_state = None
+        self._have_to_save = False
+
     def __call__(self, epoch):
-        if epoch % self.save_freq != 0:
-            return
+        # if epoch % self.save_freq != 0:
+        #     return
         metrics = self.experiment.metrics.df
         metrics = metrics[metrics.phase == self.phase]
         history = metrics[metrics.epoch < epoch]
@@ -158,12 +162,20 @@ class ModelCheckpoint:
         current_best = getattr(metrics[quantity], self.mode)()
 
         if prev_best != current_best:
-            ckpt_path = self.experiment.path / "checkpoints"
-            for i in range(self.save_top_k - 1, 0, -1):
-                src = ckpt_path / f"{tag}_{i}.pt" if i > 1 else ckpt_path / f"{tag}.pt"
-                if src.exists():
-                    src.rename(ckpt_path / f"{tag}_{i+1}.pt")
-            self.experiment.checkpoint(tag)
+            # ckpt_path = self.experiment.path / "checkpoints"
+            # for i in range(self.save_top_k - 1, 0, -1):
+            #     src = ckpt_path / f"{tag}_{i}.pt" if i > 1 else ckpt_path / f"{tag}.pt"
+            #     if src.exists():
+            #         src.rename(ckpt_path / f"{tag}_{i+1}.pt")
+            # self.experiment.checkpoint(tag)
+            self._best_state = self.experiment.state
+            self._have_to_save = True
+
+        if epoch % self.save_freq == 0:
+            with (self.experiment.path / f"checkpoints/{tag}.pt").open("wb") as f:
+                print(f"Saving model with {tag}")
+                torch.save(self._best_state, f)
+                self._have_to_save = False
 
 
 def JobProgress(experiment):
