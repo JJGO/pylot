@@ -23,7 +23,7 @@ class OxfordPets(Dataset, DatapathMixin):
 
     def __init__(
         self,
-        train=True,
+        split,
         download=False,
         root=None,
         cache=False,
@@ -33,6 +33,7 @@ class OxfordPets(Dataset, DatapathMixin):
         augmentation=False,
         onehot: bool = False,
     ):
+        train = (split == 'train')
         assert mode in self.MODES, f"Mode {mode} not one of {','.join(self.MODES)}"
         assert not download or (
             root is not None

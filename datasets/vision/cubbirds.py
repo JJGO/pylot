@@ -22,7 +22,7 @@ class CUBBirds(Dataset, DatapathMixin):
 
     def __init__(
         self,
-        train=True,
+        split,
         download=False,
         root=None,
         cache=False,
@@ -31,6 +31,7 @@ class CUBBirds(Dataset, DatapathMixin):
         size: Tuple[int, int] = (192, 256),
         augmentation=False,
     ):
+        train = (split == 'train')
 
         assert mode in self.MODES, f"Mode {mode} not one of {','.join(self.MODES)}"
         assert not download or (
