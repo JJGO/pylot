@@ -18,7 +18,7 @@ class SpatialTransformer(nn.Module):
     def _init_grid(self):
 
         vectors = [torch.arange(0, s).type(torch.FloatTensor) for s in self.size]
-        grid = torch.stack(torch.meshgrid(vectors), dim=-1)
+        grid = torch.stack(torch.meshgrid(vectors, indexing='ij'), dim=-1)
         # grid_resample expects image order, i.e. (y,x) or (z,y,x)
         grid = grid.flip(dims=[-1])
         grid = grid.unsqueeze(0)
