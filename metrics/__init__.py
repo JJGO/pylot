@@ -10,6 +10,8 @@ from .segmentation import (
     pixel_mse,
     dice_score,
     jaccard_score,
+    mIoU,
+    IoU,
 )
 
 from .model import module_table, parameter_table

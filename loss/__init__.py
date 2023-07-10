@@ -6,7 +6,8 @@ from .segmentation import (
     soft_dice_loss,
     SoftDiceLoss,
     SoftJaccardLoss,
-    PixelMSELoss
+    PixelMSELoss,
+    pixel_mse_loss
 )
 from .total_variation import total_variation_loss, TotalVariationLoss
 from .ncc import ncc_loss, NCCLoss

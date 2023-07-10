@@ -14,3 +14,4 @@ from .spatial_transformer import SpatialTransformer
 from .util import *
 from .vmap import *
 from .squeeze_excite import SqueezeExcite2d
+from .bmap import *
