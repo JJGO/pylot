@@ -191,6 +191,14 @@ class JsonlFormat(FileFormat):
 
     @classmethod
     def save(cls, obj, fp):
+        fp = cls.check_fp(fp)
+        if isinstance(obj, list):
+            with fp.open('w') as f:
+                print(
+                    "\n".join((json.dumps(row) for row in obj)),
+                    file=f
+                )
+            return
         if not isinstance(obj, pd.DataFrame):
             raise TypeError("Can only serialize pd.DataFrame objects")
         fp = cls.check_fp(fp)
