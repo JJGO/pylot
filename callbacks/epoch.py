@@ -1,3 +1,4 @@
+import copy
 import sys
 import time
 from collections import defaultdict
@@ -168,7 +169,7 @@ class ModelCheckpoint:
             #     if src.exists():
             #         src.rename(ckpt_path / f"{tag}_{i+1}.pt")
             # self.experiment.checkpoint(tag)
-            self._best_state = self.experiment.state
+            self._best_state = copy.deepcopy(self.experiment.state)
             self._have_to_save = True
 
         if epoch % self.save_freq == 0 and self._have_to_save:
