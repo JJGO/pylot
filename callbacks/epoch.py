@@ -171,7 +171,7 @@ class ModelCheckpoint:
             self._best_state = self.experiment.state
             self._have_to_save = True
 
-        if epoch % self.save_freq == 0:
+        if epoch % self.save_freq == 0 and self._have_to_save:
             with (self.experiment.path / f"checkpoints/{tag}.pt").open("wb") as f:
                 print(f"Saving model with {tag}")
                 torch.save(self._best_state, f)
