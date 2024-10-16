@@ -173,6 +173,8 @@ class ModelCheckpoint:
             self._have_to_save = True
 
         if epoch % self.save_freq == 0 and self._have_to_save:
+            if not (self.experiment.path / "checkpoints").exists(): 
+                (self.experiment.path / "checkpoints").mkdir(parents=True, exist_ok=True)
             with (self.experiment.path / f"checkpoints/{tag}.pt").open("wb") as f:
                 print(f"Saving model with {tag}")
                 torch.save(self._best_state, f)
