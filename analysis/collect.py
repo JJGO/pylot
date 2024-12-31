@@ -154,7 +154,7 @@ class ResultsLoader:
                 continue
             if prefix:
                 log_df.rename(
-                    columns={c: f"{prefix}.{c}" for c in log_df.columns}, inplace=True
+                    columns={c: f"{prefix}_{c}" for c in log_df.columns}, inplace=True
                 )
             if len(copy_cols) > 0:
                 for col in copy_cols:
@@ -173,8 +173,8 @@ class ResultsLoader:
         if shorthand:
             renames = {}
             for c in full_df.columns:
-                if c.startswith("log."):
-                    shortc = c[len("log.") :]
+                if c.startswith("log_"):
+                    shortc = c[len("log_") :]
                     if shortc not in full_df.columns:
                         renames[c] = shortc
                     else:
@@ -244,7 +244,7 @@ class ResultsLoader:
             if prefix:
                 data_df.rename(
                     columns={
-                        c: f"{prefix}.{c}" for c in data_df.columns if c in copy_cols
+                        c: f"{prefix}_{c}" for c in data_df.columns if c in copy_cols
                     },
                     inplace=True,
                 )
