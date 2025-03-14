@@ -22,7 +22,7 @@ def Throughput(experiment, n_iter: int = 1_00, verbose: bool = True):
             _ = next(dl)
 
     # Model training throughput
-    sample_input = to_device(next(iter(experiment.train_dl)), experiment.device)
+    sample_input = to_device(next(iter(experiment.train_dl)), experiment.device, experiment.config.get("train.channels_last", False))
     for _ in range(n_iter+n_iter//10):
         with timer("train-loop"):
             experiment.run_step(batch=sample_input, batch_idx=0, backward=True, augmentation=True)
