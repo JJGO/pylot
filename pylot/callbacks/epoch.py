@@ -2,7 +2,7 @@ import copy
 import sys
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from typing import Literal, Union
 
@@ -12,7 +12,6 @@ from tabulate import tabulate
 
 import torch
 import pandas as pd
-
 
 def PrintLogged(experiment):
     def PrintLoggedCallback(epoch):
@@ -70,7 +69,6 @@ class ETA:
         if n_steps is None:
             n_steps = experiment.config["train.epochs"] - 1
         self.n_steps = n_steps
-        # self.counter = 0
         self.timestamps = [None for _ in range(n_steps)]
         self.print_freq = print_freq
         self.gamma = gamma
@@ -82,16 +80,35 @@ class ETA:
         self.timestamps[epoch] = time.time()
         if len(self.timestamps) % self.print_freq == 0:
             eta = self._least_squares_fit()
+            time_per_epoch = self._time_per_epoch(epoch)
             try:
                 eta = datetime.fromtimestamp(eta)
             except ValueError:
                 return
             remain = eta - datetime.now()
             remain = self.strfdelta(remain, "{hours:02d}:{minutes:02d}:{seconds:02d}")
+            perepoch = self.strfdelta(time_per_epoch, "{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}")
             N = self.n_steps
-            print(f"ETA ({epoch}/{N}): {eta:%Y-%m-%d %H:%M:%S} - {remain} remaining")
+            print(f"ETA ({epoch}/{N}): {eta:%Y-%m-%d %H:%M:%S} - {remain} remaining - {perepoch} per epoch")
 
-    def _least_squares_fit(self):
+    def _time_per_epoch(self, epoch) -> timedelta:
+        if epoch==0:
+            return timedelta(0)
+        else:
+            if self.timestamps[epoch-1] is not None:
+                start_time = datetime.fromtimestamp(self.timestamps[epoch-1])
+                end_time = datetime.fromtimestamp(self.timestamps[epoch])
+                return end_time - start_time
+            else:
+                for i,t in enumerate(self.timestamps):
+                    if t:
+                        if i >= (epoch - self.print_freq):
+                            break
+                current_time = datetime.fromtimestamp(self.timestamps[int(epoch)])
+                time_delta = current_time - datetime.fromtimestamp(t)
+                return time_delta/max((epoch - i),1)
+
+    def _least_squares_fit(self) -> float:
         # Use weighted least squares with exponentially decaying weights
         # to predict when the iterations will end
         x = np.array([i for i, t in enumerate(self.timestamps) if t])
@@ -107,8 +124,9 @@ class ETA:
     @staticmethod
     def strfdelta(tdelta, fmt):
         d = {}
-        d["hours"], rem = divmod(int(tdelta.total_seconds()), 3600)
-        d["minutes"], d["seconds"] = divmod(rem, 60)
+        d["hours"], rem = divmod(int(1_000*tdelta.total_seconds()), 1_000*3_600)
+        d["minutes"], rem2 = divmod(rem, 1_000*60)
+        d["seconds"], d["milliseconds"] = divmod(rem2, 1_000)
         return fmt.format(**d)
 
 

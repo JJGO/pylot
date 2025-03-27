@@ -1,0 +1,77 @@
+[build-system]
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pylot"
+version = "0.0.1"
+description = "pylot - Experiment Management for Deep Learning Science"
+authors = [{ name = "Jose Javier Gonzalez Ortiz" }]
+license = { file = "LICENSE" }
+readme = "README.md"
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["deep learning"]
+dependencies = [
+    "albumentations",
+    "box",
+    "decoder",
+    "device",
+    "diskcache",
+    "einops",
+    "fastcore",
+    "graphviz",
+    "humanize",
+    "imohash",
+    "IPython",
+    "ipywidgets",
+    "jc",
+    "Jinja2",
+    "kornia",
+    "lmdbm",
+    "lz4",
+    "matplotlib",
+    "more-itertools",
+    "msgpack-numpy",
+    "msgpack-python",
+    "numpy",
+    "opencv-contrib-python",
+    "opencv-python-headless",
+    "pandas",
+    "parse",
+    "Pillow",
+    "plotly",
+    "psutil",
+    "pyarrow",
+    "pydantic",
+    "Pympler",
+    "PyYAML",
+    "rich",
+    "s3fs",
+    "scikit-learn",
+    "scipy",
+    "seaborn",
+    "setuptools",
+    "stackprinter",
+    "tabulate",
+    "torch",
+    "torchmetrics",
+    "torchvision",
+    "torchviz",
+    "tqdm",
+    "typer",
+    "xxhash",
+    "zstd",
+]
+
+requires-python = ">=3.9"
+
+[project.urls]
+Homepage = "https://github.com/jjgo/pylot"
+Repository = "https://github.com/jjgo/pylot"
+
+[project.optional-dependencies]
+build = ["build", "setuptols", "twine"]
